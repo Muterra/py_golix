@@ -421,9 +421,9 @@ class ParseHelper():
             # Return a result only if all defined lengths match
             if (parser_expectation != None and self_expectation != parser_expectation) or \
                (data_expectation != None and data_expectation != self_expectation):
-                    print('self:   ', self_expectation)
-                    print('parser: ', parser_expectation)
-                    print('data:   ', data_expectation)
+                    # print('self:   ', self_expectation)
+                    # print('parser: ', parser_expectation)
+                    # print('data:   ', data_expectation)
                     raise RuntimeError('ParseHelper expected length does not '
                                        'match both _Parser and data lengths.')
             else: 
@@ -507,7 +507,7 @@ class SmartyParser():
         # State check: length {len: X, val: ?}; data {len: None, val: ?}
         # Now load the length, and then this gets called:
         def postload_len(loaded_length, data_name=data_name):
-            print('postload length')
+            # print('postload length')
             self._control[data_name].set_length(loaded_length)
             self._control[data_name]._build_slice()
         self._control[length_name].register_callback('postload', postload_len)
@@ -516,7 +516,7 @@ class SmartyParser():
         # State check: length {len: X, val: n}; data {len: n, val: Y}
         # Which calls this...
         def postload_dat(loaded_data, data_name=data_name):
-            print('postload data')
+            # print('postload data')
             self._control[data_name].set_length(None)
             self._control[data_name]._build_slice()
         self._control[data_name].register_callback('postload', postload_dat)
@@ -751,16 +751,16 @@ class SmartyParser():
                 except IndexError:
                     raise IndexError('Data wrong size (too small?) for parsing chain.')
                     
-                print('seeker   ', seeker)
-                print('offset   ', parser.offset)
-                print('old off  ', oldoffset)
-                print('oldlen   ', oldlen)
-                print('slice    ', parser._slice)
-                print('bytelen  ', parser.byte_len)
-                print('slicelen ', len(sliced))
-                print('data     ', bytes(sliced))
-                print('loaded   ', loaded)
-                print('-----------------------------------------------')
+                # print('seeker   ', seeker)
+                # print('offset   ', parser.offset)
+                # print('old off  ', oldoffset)
+                # print('oldlen   ', oldlen)
+                # print('slice    ', parser._slice)
+                # print('bytelen  ', parser.byte_len)
+                # print('slicelen ', len(sliced))
+                # print('data     ', bytes(sliced))
+                # print('loaded   ', loaded)
+                # print('-----------------------------------------------')
                 
                 if parser.byte_len != None and len(sliced) != parser.byte_len:
                     raise ValueError('Parser slice length differs from data slice.')

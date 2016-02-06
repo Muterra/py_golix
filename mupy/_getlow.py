@@ -56,58 +56,14 @@ from warnings import warn
 # ###############################################
 
 
-# from .utils import slicer_generator
-from .parsers import _ParseNeat
-from .parsers import _ParseINT8US
-from .parsers import _ParseINT16US
-from .parsers import _ParseINT32US
-from .parsers import _ParseINT64US
-from .parsers import _ParseVersion
-from .parsers import _ParseCipher
-from .parsers import _ParseHashAlgo
-from .parsers import _ParseMagic
-from .parsers import _ParseMUID
-from .parsers import _ParseNone
-from .parsers import _ParseSignature
-from .parsers import _ParseKey
-
-from ._smartyparse import ParseHelper
-from ._smartyparse import SmartyParser
+from smartyparse import ParseHelper
+from smartyparse import SmartyParser
+from smartyparse import parsers
 
 
 # ###############################################
 # Helper objects
 # ###############################################
-
-
-class _DictWelder():
-    ''' Turns two dictionaries with matching keys into a single dict 
-    with tuples as values (well, sorta; currently only for keyword 
-    iteration.).
-    '''
-    def __init__(self, control, lookup):
-        self.control = control
-        self.lookup = lookup
-        
-    def __iter__(self):
-        ''' Welds together the control ordereddict with the lookup dict.
-        '''
-        for key in self.control:
-            yield self.control[key], self.lookup[key]
-
-
-# class _ListWelder():
-#     ''' Turns two iterables into a dictionary.
-#     '''
-#     def __init__(self, control, lookup):
-#         self.control = control
-#         self.lookup = lookup
-        
-#     def __iter__(self):
-#         ''' Welds together the control ordereddict with the lookup dict.
-#         '''
-#         for key in self.control:
-#             yield self.control[key], self.lookup[key]
     
 
 # ###############################################
@@ -118,12 +74,10 @@ class _DictWelder():
 class _MuseObjectBase(metaclass=abc.ABCMeta):
     ''' Boilerplate-avoidance class. Might not actually be helping much.
     '''
-    GLOBAL_PREFIX = collections.OrderedDict()
-    GLOBAL_PREFIX['magic'] = ParseHelper(_ParseMagic, length=4)
-    GLOBAL_PREFIX['version'] = ParseHelper(_ParseVersion, length=4)
-    # If version ever modifies cipher to be >1B, this will need to be moved
-    # into individual object definitions.
-    GLOBAL_PREFIX['cipher'] = ParseHelper(_ParseCipher, length=1)
+    GLOBAL_PREFIX = SmartyParser()
+    GLOBAL_PREFIX['magic'] = ParseHelper(parsers.Blob(length=4))
+    GLOBAL_PREFIX['version'] = ParseHelper(parsers.Int32(signed=False))
+    GLOBAL_PREFIX['cipher'] = ParseHelper(parsers.Int8(signed=False))
     
     GLOBAL_OFFSET = 9
     

@@ -62,8 +62,43 @@ from smartyparse import parsers
 
 
 # ###############################################
-# Helper objects
+# Helper objects and functions
 # ###############################################
+    
+    
+def _dispatch_meoc(parent):
+    # Builds the smartyparser for a MEOC into "parent" object
+    pass
+    
+    
+def _dispatch_mobs(parent):
+    # Builds the smartyparser into "parent" object
+    pass
+    
+    
+def _dispatch_mobd(parent):
+    # Builds the smartyparser into "parent" object
+    pass
+    
+    
+def _dispatch_mdxx(parent):
+    # Builds the smartyparser into "parent" object
+    pass
+    
+    
+def _dispatch_mepr(parent):
+    # Builds the smartyparser into "parent" object
+    pass
+    
+    
+def _dispatch_mpak(parent):
+    # Builds the smartyparser into "parent" object
+    pass
+    
+    
+def _dispatch_mpnk(parent):
+    # Builds the smartyparser into "parent" object
+    pass
     
 
 # ###############################################
@@ -72,14 +107,17 @@ from smartyparse import parsers
     
 
 class _MuseObjectBase(metaclass=abc.ABCMeta):
-    ''' Boilerplate-avoidance class. Might not actually be helping much.
+    ''' Muse object bases should handle all of the parsing/building 
+    dispatch. From there, the subclasses handle object creation, roughly
+    equivalent to the object defs spat out by the smartyparsers.
+    
+    Will this need a helper metaclass to do all of the callbacks for the
+    parse handling? Or should that be @staticmethod?
     '''
     GLOBAL_PREFIX = SmartyParser()
     GLOBAL_PREFIX['magic'] = ParseHelper(parsers.Blob(length=4))
     GLOBAL_PREFIX['version'] = ParseHelper(parsers.Int32(signed=False))
     GLOBAL_PREFIX['cipher'] = ParseHelper(parsers.Int8(signed=False))
-    
-    GLOBAL_OFFSET = 9
     
     def __init__(self, address_algo='default', cipher='default', version='latest'):
         self._raw = None

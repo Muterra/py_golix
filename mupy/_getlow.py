@@ -64,10 +64,53 @@ from smartyparse import parsers
 # ###############################################
 # Helper objects and functions
 # ###############################################
+
+
+# Order of operations: post-unpack on magic registers callback for dispatch
+# as post-unpack on cipher suite
+
+
+_cipher_config_lookup = {
+    0: {
+        'len_key': 32,
+        'len_sig': 512,
+        'len_mac': 64,
+        'len_asym': 512,
+        'len_nonce': 16
+    },
+    1: {
+        'len_key': 32,
+        'len_sig': 512,
+        'len_mac': 64,
+        'len_asym': 512,
+        'len_nonce': 16
+    },
+    2: {
+        'len_key': 64,
+        'len_sig': 512,
+        'len_mac': 64,
+        'len_asym': 512,
+        'len_nonce': 0
+    }
+}
+
+
+def _extract_config(parent):
+    cipher = parent['header']['version']
+    config = {}
+    config['version'] = cipher
+    config['cipher'] = parent['header']['cipher']
+    
+    # Add in lengths for fields based on cipher
+    try:
+        config.update(_cipher_config_lookup[cipher])
+    except KeyError:
+        raise ValueError('Improper cipher suite declaration.')
     
     
 def _dispatch_meoc(parent):
     # Builds the smartyparser for a MEOC into "parent" object
+    config = _extract_config(parent)
     pass
     
     
@@ -114,10 +157,10 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
     Will this need a helper metaclass to do all of the callbacks for the
     parse handling? Or should that be @staticmethod?
     '''
-    GLOBAL_PREFIX = SmartyParser()
-    GLOBAL_PREFIX['magic'] = ParseHelper(parsers.Blob(length=4))
-    GLOBAL_PREFIX['version'] = ParseHelper(parsers.Int32(signed=False))
-    GLOBAL_PREFIX['cipher'] = ParseHelper(parsers.Int8(signed=False))
+    MUSE_HEADER = SmartyParser()
+    MUSE_HEADER['magic'] = ParseHelper(parsers.Blob(length=4))
+    MUSE_HEADER['version'] = ParseHelper(parsers.Int32(signed=False))
+    MUSE_HEADER['cipher'] = ParseHelper(parsers.Int8(signed=False))
     
     def __init__(self, address_algo='default', cipher='default', version='latest'):
         self._raw = None
@@ -146,7 +189,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
     def ingest(cls, obj):
         ingested = collections.OrderedDict()
         
-        for key, parsehelper in cls.GLOBAL_PREFIX:
+        for key, parsehelper in cls.MUSE_HEADER:
             ingested[key] = parsehelper.parse(obj)
             
         return ingested

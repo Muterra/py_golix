@@ -70,32 +70,7 @@ from smartyparse import parsers
 # as post-unpack on cipher suite
 
 
-_cipher_config_lookup = {
-    0: {
-        'len_key': 32,
-        'len_sig': 512,
-        'len_mac': 64,
-        'len_asym': 512,
-        'len_nonce': 16
-    },
-    1: {
-        'len_key': 32,
-        'len_sig': 512,
-        'len_mac': 64,
-        'len_asym': 512,
-        'len_nonce': 16
-    },
-    2: {
-        'len_key': 64,
-        'len_sig': 512,
-        'len_mac': 64,
-        'len_asym': 512,
-        'len_nonce': 0
-    }
-}
-
-
-def _extract_config(parent):
+def _extract_config(parent, expect_version):
     cipher = parent['header']['version']
     config = {}
     config['version'] = cipher
@@ -103,7 +78,7 @@ def _extract_config(parent):
     
     # Add in lengths for fields based on cipher
     try:
-        config.update(_cipher_config_lookup[cipher])
+        config.update(cipher_config_lookup[cipher])
     except KeyError:
         raise ValueError('Improper cipher suite declaration.')
     
@@ -111,6 +86,12 @@ def _extract_config(parent):
 def _dispatch_meoc(parent):
     # Builds the smartyparser for a MEOC into "parent" object
     config = _extract_config(parent)
+    
+    # For now, hard-code version, and go from there. This will need refactoring
+    if config['version'] != 14:
+        raise ValueError('Improper MEOC version declaration.')
+        
+    
     pass
     
     

@@ -50,6 +50,9 @@ import struct
 import os
 from warnings import warn
         
+# Interpackage stuff
+# from ._spec import generate_muse_parser
+
         
 # ###############################################
 # Utilities
@@ -238,19 +241,6 @@ class MEOC(_MuseObjectBase):
     and unencrypted bytes.
     '''
     MAGIC = b'MEOC'
-    
-    # This should be ordered in descending order (newest first)
-    # At some point, perhaps this should be moved to a .json config file or summat
-    VERSION_DEFINITIONS = collections.OrderedDict()
-    # Note that this messy "redundant" definition is necessary because the 
-    # ordereddict constructor loses order due to Python argument passing.
-    VERSION_DEFINITIONS[14] = collections.OrderedDict()
-    VERSION_DEFINITIONS[14]['author'] = ParseHelper(parser=_ParseMUID)
-    VERSION_DEFINITIONS[14]['payload_length'] = ParseHelper(parser=_ParseINT64US, length=8)
-    VERSION_DEFINITIONS[14]['payload'] = ParseHelper(parser=_ParseNeat)
-    VERSION_DEFINITIONS[14]['address_algo'] = ParseHelper(parser=_ParseINT8US, length=1)
-    VERSION_DEFINITIONS[14]['file_hash'] = ParseHelper(parser=_ParseNeat)
-    VERSION_DEFINITIONS[14]['signature'] = ParseHelper(parser=_ParseNeat)
     # Don't forget to update the various things based on parsed values
     
     def __init__(self, author, payload, *args, **kwargs):

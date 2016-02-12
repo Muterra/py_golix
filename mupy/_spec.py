@@ -66,7 +66,7 @@ def generate_muid_parser():
             raise ValueError('Improper hash algorithm declaration.') from e
             
     muid_parser['algo'].register_callback('prepack', _muid_format)
-    parent['algo'].register_callback('postunpack', _muid_format)
+    muid_parser['algo'].register_callback('postunpack', _muid_format)
     
     return muid_parser
 

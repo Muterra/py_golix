@@ -46,7 +46,7 @@ from smartyparse import references
 _dummy_address = b'[[ Start hash -- ' + bytes(32) + b' -- End hash ]]'
 
 _hash_algo_lookup = {
-    0: ParseHelper(parsers.Literal(_dummy_address))
+    0: ParseHelper(parsers.Literal(_dummy_address)),
     1: ParseHelper(parsers.Blob(length=64))
 }
 

@@ -43,7 +43,7 @@ from smartyparse import references
 # ----------------------------------------------------------------------
 # Hash algo identifier / length block
 
-_dummy_address = b'[[ Start hash -- ' + bytes(32) + b' -- End hash ]]'
+_dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
 
 _hash_algo_lookup = {
     0: ParseHelper(parsers.Literal(_dummy_address)),
@@ -63,12 +63,31 @@ def generate_muid_parser():
         try:
             self['address'] = _hash_algo_lookup[algo]
         except KeyError as e:
+            print(algo)
             raise ValueError('Improper hash algorithm declaration.') from e
             
     muid_parser['algo'].register_callback('prepack', _muid_format)
     muid_parser['algo'].register_callback('postunpack', _muid_format)
     
     return muid_parser
+
+# ----------------------------------------------------------------------
+# Generalized object dispatcher
+
+def _gen_dispatch(header, lookup, key):
+    @references(header)
+    def _dispatch_obj(self, version, key=key):
+        try:
+            self[key] = lookup[version]
+        except KeyError:
+            raise parsers.ParseError('No matching version number available.')
+    return _dispatch_obj
+    
+def _callback_multi(*funcs):
+    def generated_callback(value):
+        for f in funcs:
+            f(value)
+    return generated_callback
 
 # ----------------------------------------------------------------------
 # Cipher length lookup block
@@ -97,40 +116,31 @@ cipher_length_lookup = {
     }
 }
 
-_dummy_signature = b'[[ Start signature -- ' + bytes(470) +  b' -- End signature ]]'
+_dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
 
 _signature_parsers = {}
 _signature_parsers[0] = ParseHelper(parsers.Literal(_dummy_signature))
 _signature_parsers[1] = ParseHelper(parsers.Blob(length=512))
 _signature_parsers[2] = ParseHelper(parsers.Blob(length=512))
 
-# def generate_crypto_parser(cipher, component):
-#     try:
-#         cs_dec = cipher_length_lookup[cipher]
-#     except KeyError as e:
-#         raise ValueError('Improper cipher suite declaration.') from e
-#     try:
-#         length = cs_dev[component]
-#     except KeyError as e:
-#         raise KeyError('Bad crypto component selection.') from e
-#     return ParseHelper(parsers.Blob(length=length))
+_dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
+
+_mac_parsers = {}
+_mac_parsers[0] = ParseHelper(parsers.Literal(_dummy_mac))
+_mac_parsers[1] = ParseHelper(parsers.Blob(length=64))
+_mac_parsers[2] = ParseHelper(parsers.Blob(length=64))
+
+_dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
+
+_asym_parsers = {}
+_asym_parsers[0] = ParseHelper(parsers.Literal(_dummy_asym))
+_asym_parsers[1] = ParseHelper(parsers.Blob(length=512))
+_asym_parsers[2] = ParseHelper(parsers.Blob(length=512))
 
 # ----------------------------------------------------------------------
 # Use this whenever a MUID list is required
 
 _muidlist = ListyParser(parsers=[generate_muid_parser()])
-
-# ----------------------------------------------------------------------
-# Generalized object dispatcher
-
-def _gen_dispatch(header, lookup):
-    @references(header)
-    def _dispatch_obj(self, version):
-        try:
-            self['body'] = lookup[version]
-        except KeyError:
-            raise parsers.ParseError('No matching version number available.')
-    return _dispatch_obj
 
 # ----------------------------------------------------------------------
 # MEOC format blocks
@@ -150,10 +160,10 @@ _meoc_lookup[14]['len_payload'] = ParseHelper(parsers.Int64(signed=False))
 _meoc_lookup[14]['payload'] = ParseHelper(parsers.Blob())
 _meoc_lookup[14].link_length('payload', 'len_payload')
     
-_meoc['version'].register_callback('prepack', _gen_dispatch(_meoc, _meoc_lookup))
-_meoc['version'].register_callback('postunpack', _gen_dispatch(_meoc, _meoc_lookup))
-_meoc['cipher'].register_callback('prepack', _gen_dispatch(_meoc, _signature_parsers))
-_meoc['cipher'].register_callback('postunpack', _gen_dispatch(_meoc, _signature_parsers))
+_meoc['version'].register_callback('prepack', _gen_dispatch(_meoc, _meoc_lookup, 'body'))
+_meoc['version'].register_callback('postunpack', _gen_dispatch(_meoc, _meoc_lookup, 'body'))
+_meoc['cipher'].register_callback('prepack', _gen_dispatch(_meoc, _signature_parsers, 'signature'))
+_meoc['cipher'].register_callback('postunpack', _gen_dispatch(_meoc, _signature_parsers, 'signature'))
 
 # ----------------------------------------------------------------------
 # MOBS format blocks
@@ -171,10 +181,10 @@ _mobs_lookup[6] = SmartyParser()
 _mobs_lookup[6]['binder'] = generate_muid_parser()
 _mobs_lookup[6]['target'] = generate_muid_parser()
     
-_mobs['version'].register_callback('prepack', _gen_dispatch(_mobs, _mobs_lookup))
-_mobs['version'].register_callback('postunpack', _gen_dispatch(_mobs, _mobs_lookup))
-_mobs['cipher'].register_callback('prepack', _gen_dispatch(_mobs, _signature_parsers))
-_mobs['cipher'].register_callback('postunpack', _gen_dispatch(_mobs, _signature_parsers))
+_mobs['version'].register_callback('prepack', _gen_dispatch(_mobs, _mobs_lookup, 'body'))
+_mobs['version'].register_callback('postunpack', _gen_dispatch(_mobs, _mobs_lookup, 'body'))
+_mobs['cipher'].register_callback('prepack', _gen_dispatch(_mobs, _signature_parsers, 'signature'))
+_mobs['cipher'].register_callback('postunpack', _gen_dispatch(_mobs, _signature_parsers, 'signature'))
 
 # ----------------------------------------------------------------------
 # MOBD format blocks
@@ -195,8 +205,123 @@ _mobd_lookup[13]['history'] = _muidlist
 _mobd_lookup[13]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
 _mobd_lookup[13]['targets'] = _muidlist
 _mobd_lookup[13]['muid_dynamic'] = generate_muid_parser()
+_mobd_lookup[13].link_length('history', 'history_length')
+_mobd_lookup[13].link_length('targets', 'targets_length')
     
-_mobd['version'].register_callback('prepack', _gen_dispatch(_mobd, _mobd_lookup))
-_mobd['version'].register_callback('postunpack', _gen_dispatch(_mobd, _mobd_lookup))
-_mobd['cipher'].register_callback('prepack', _gen_dispatch(_mobd, _signature_parsers))
-_mobd['cipher'].register_callback('postunpack', _gen_dispatch(_mobd, _signature_parsers))
+_mobd['version'].register_callback('prepack', _gen_dispatch(_mobd, _mobd_lookup, 'body'))
+_mobd['version'].register_callback('postunpack', _gen_dispatch(_mobd, _mobd_lookup, 'body'))
+_mobd['cipher'].register_callback('prepack', _gen_dispatch(_mobd, _signature_parsers, 'signature'))
+_mobd['cipher'].register_callback('postunpack', _gen_dispatch(_mobd, _signature_parsers, 'signature'))
+
+# ----------------------------------------------------------------------
+# MDXX format blocks
+
+_mdxx = SmartyParser()
+_mdxx['magic'] = ParseHelper(parsers.Literal(b'MDXX'))
+_mdxx['version'] = ParseHelper(parsers.Int32(signed=False))
+_mdxx['cipher'] = ParseHelper(parsers.Int8(signed=False))
+_mdxx['body'] = None
+_mdxx['muid'] = generate_muid_parser()
+_mdxx['signature'] = None
+
+_mdxx_lookup = {}
+_mdxx_lookup[7] = SmartyParser()
+_mdxx_lookup[7]['debinder'] = generate_muid_parser()
+_mdxx_lookup[7]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
+_mdxx_lookup[7]['targets'] = _muidlist
+_mdxx_lookup[7].link_length('targets', 'targets_length')
+    
+_mdxx['version'].register_callback('prepack', _gen_dispatch(_mdxx, _mdxx_lookup, 'body'))
+_mdxx['version'].register_callback('postunpack', _gen_dispatch(_mdxx, _mdxx_lookup, 'body'))
+_mdxx['cipher'].register_callback('prepack', _gen_dispatch(_mdxx, _signature_parsers, 'signature'))
+_mdxx['cipher'].register_callback('postunpack', _gen_dispatch(_mdxx, _signature_parsers, 'signature'))
+
+# ----------------------------------------------------------------------
+# MEPR format blocks
+
+_mepr = SmartyParser()
+_mepr['magic'] = ParseHelper(parsers.Literal(b'MEPR'))
+_mepr['version'] = ParseHelper(parsers.Int32(signed=False))
+_mepr['cipher'] = ParseHelper(parsers.Int8(signed=False))
+_mepr['body'] = None
+_mepr['muid'] = generate_muid_parser()
+_mepr['mac'] = None
+
+_mepr_lookup = {}
+_mepr_lookup[11] = SmartyParser()
+_mepr_lookup[11]['recipient'] = generate_muid_parser()
+_mepr_lookup[11]['payload'] = None
+    
+# This should keep working even with the addition of new version numbers
+def _generate_asym_update(container):
+    def _update_asym(cipher):
+        container['body']['payload'] = _asym_parsers[cipher]
+    return _update_asym
+
+_mepr_cipher_update = _callback_multi(
+    _gen_dispatch(_mepr, _mac_parsers, 'mac'), 
+    _generate_asym_update(_mepr))
+_mepr['version'].register_callback('prepack', _gen_dispatch(_mepr, _mepr_lookup, 'body'))
+_mepr['version'].register_callback('postunpack', _gen_dispatch(_mepr, _mepr_lookup, 'body'))
+_mepr['cipher'].register_callback('prepack', _mepr_cipher_update)
+_mepr['cipher'].register_callback('postunpack', _mepr_cipher_update)
+
+# ----------------------------------------------------------------------
+# MPAK format blocks
+
+_mpak = SmartyParser()
+_mpak['magic'] = ParseHelper(parsers.Literal(b'MPAK'))
+_mpak['version'] = ParseHelper(parsers.Int32(signed=False))
+_mpak['cipher'] = ParseHelper(parsers.Int8(signed=False))
+_mpak['body'] = None
+_mpak['muid'] = generate_muid_parser()
+_mpak['mac'] = None
+
+_mpak_lookup = {}
+_mpak_lookup[6] = SmartyParser()
+_mpak_lookup[6]['recipient'] = generate_muid_parser()
+_mpak_lookup[6]['payload'] = None
+    
+# This should keep working even with the addition of new version numbers
+def _generate_asym_update(container):
+    def _update_asym(cipher):
+        container['body']['payload'] = _asym_parsers[cipher]
+    return _update_asym
+
+_mpak_cipher_update = _callback_multi(
+    _gen_dispatch(_mpak, _mac_parsers, 'mac'), 
+    _generate_asym_update(_mpak))
+_mpak['version'].register_callback('prepack', _gen_dispatch(_mpak, _mpak_lookup, 'body'))
+_mpak['version'].register_callback('postunpack', _gen_dispatch(_mpak, _mpak_lookup, 'body'))
+_mpak['cipher'].register_callback('prepack', _mpak_cipher_update)
+_mpak['cipher'].register_callback('postunpack', _mpak_cipher_update)
+
+# ----------------------------------------------------------------------
+# MPNK format blocks
+
+_mpnk = SmartyParser()
+_mpnk['magic'] = ParseHelper(parsers.Literal(b'MPNK'))
+_mpnk['version'] = ParseHelper(parsers.Int32(signed=False))
+_mpnk['cipher'] = ParseHelper(parsers.Int8(signed=False))
+_mpnk['body'] = None
+_mpnk['muid'] = generate_muid_parser()
+_mpnk['mac'] = None
+
+_mpnk_lookup = {}
+_mpnk_lookup[6] = SmartyParser()
+_mpnk_lookup[6]['recipient'] = generate_muid_parser()
+_mpnk_lookup[6]['payload'] = None
+    
+# This should keep working even with the addition of new version numbers
+def _generate_asym_update(container):
+    def _update_asym(cipher):
+        container['body']['payload'] = _asym_parsers[cipher]
+    return _update_asym
+
+_mpnk_cipher_update = _callback_multi(
+    _gen_dispatch(_mpnk, _mac_parsers, 'mac'), 
+    _generate_asym_update(_mpnk))
+_mpnk['version'].register_callback('prepack', _gen_dispatch(_mpnk, _mpnk_lookup, 'body'))
+_mpnk['version'].register_callback('postunpack', _gen_dispatch(_mpnk, _mpnk_lookup, 'body'))
+_mpnk['cipher'].register_callback('prepack', _mpnk_cipher_update)
+_mpnk['cipher'].register_callback('postunpack', _mpnk_cipher_update)

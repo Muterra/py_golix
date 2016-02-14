@@ -36,7 +36,7 @@ mupy: A python library for Muse object manipulation.
 import sys
 import collections
 
-from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mepr, _mpak, _mpnk
+from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _asym_nk, _asym_else
 
 # ###############################################
 # Testing
@@ -110,9 +110,9 @@ if __name__ == '__main__':
     mdxx_1r = _mdxx.unpack(mdxx_1p)
     
     # MEPR test parsers
-    mepr_1 = {
+    mear_1 = {
         'magic': None,
-        'version': 11,
+        'version': 12,
         'cipher': 0,
         'body': {
             'recipient': {'algo': 0, 'address': None},
@@ -122,40 +122,50 @@ if __name__ == '__main__':
         'mac': None
     }
     
-    mepr_1p = _mepr.pack(mepr_1)
-    mepr_1r = _mepr.unpack(mepr_1p)
+    mear_1p = _mear.pack(mear_1)
+    mear_1r = _mear.unpack(mear_1p)
     
-    # MPAK test parsers
-    mpak_1 = {
-        'magic': None,
-        'version': 6,
-        'cipher': 0,
-        'body': {
-            'recipient': {'algo': 0, 'address': None},
-            'payload': None,
-        },
-        'muid': {'algo': 0, 'address': None},
-        'mac': None
+    # Asymmetric payload blob tests.
+    asym_pr_1 = {
+        'author': {'algo': 0, 'address': None},
+        'id': b'PR',
+        'payload': {
+            'target': {'algo': 0, 'address': None},
+            'key': bytes(32)
+        }
     }
+    asym_pr_1p = _asym_pr.pack(asym_pr_1)
+    asym_pr_1r = _asym_pr.unpack(asym_pr_1p)
     
-    mpak_1p = _mpak.pack(mpak_1)
-    mpak_1r = _mpak.unpack(mpak_1p)
-    
-    # MPNK test parsers
-    mpnk_1 = {
-        'magic': None,
-        'version': 6,
-        'cipher': 0,
-        'body': {
-            'recipient': {'algo': 0, 'address': None},
-            'payload': None,
-        },
-        'muid': {'algo': 0, 'address': None},
-        'mac': None
+    asym_ak_2 = {
+        'author': {'algo': 0, 'address': None},
+        'id': b'AK',
+        'payload': {
+            'target': {'algo': 0, 'address': None},
+            'status': 0
+        }
     }
+    asym_ak_2p = _asym_ak.pack(asym_ak_2)
+    asym_ak_2r = _asym_ak.unpack(asym_ak_2p)
     
-    mpnk_1p = _mpnk.pack(mpnk_1)
-    mpnk_1r = _mpnk.unpack(mpnk_1p)
+    asym_nk_3 = {
+        'author': {'algo': 0, 'address': None},
+        'id': b'NK',
+        'payload': {
+            'target': {'algo': 0, 'address': None},
+            'status': 0
+        }
+    }
+    asym_nk_3p = _asym_nk.pack(asym_nk_3)
+    asym_nk_3r = _asym_nk.unpack(asym_nk_3p)
+    
+    asym_else_4 = {
+        'author': {'algo': 0, 'address': None},
+        'id': b'\x00\x00',
+        'payload': b'Hello world'
+    }
+    asym_else_4p = _asym_else.pack(asym_else_4)
+    asym_else_4r = _asym_else.unpack(asym_else_4p)
     
     import IPython
     IPython.embed()

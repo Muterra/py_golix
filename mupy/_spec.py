@@ -237,20 +237,20 @@ _mdxx['cipher'].register_callback('prepack', _gen_dispatch(_mdxx, _signature_par
 _mdxx['cipher'].register_callback('postunpack', _gen_dispatch(_mdxx, _signature_parsers, 'signature'))
 
 # ----------------------------------------------------------------------
-# MEPR format blocks
+# MEAR format blocks
 
-_mepr = SmartyParser()
-_mepr['magic'] = ParseHelper(parsers.Literal(b'MEPR'))
-_mepr['version'] = ParseHelper(parsers.Int32(signed=False))
-_mepr['cipher'] = ParseHelper(parsers.Int8(signed=False))
-_mepr['body'] = None
-_mepr['muid'] = generate_muid_parser()
-_mepr['mac'] = None
+_mear = SmartyParser()
+_mear['magic'] = ParseHelper(parsers.Literal(b'MEAR'))
+_mear['version'] = ParseHelper(parsers.Int32(signed=False))
+_mear['cipher'] = ParseHelper(parsers.Int8(signed=False))
+_mear['body'] = None
+_mear['muid'] = generate_muid_parser()
+_mear['mac'] = None
 
-_mepr_lookup = {}
-_mepr_lookup[11] = SmartyParser()
-_mepr_lookup[11]['recipient'] = generate_muid_parser()
-_mepr_lookup[11]['payload'] = None
+_mear_lookup = {}
+_mear_lookup[12] = SmartyParser()
+_mear_lookup[12]['recipient'] = generate_muid_parser()
+_mear_lookup[12]['payload'] = None
     
 # This should keep working even with the addition of new version numbers
 def _generate_asym_update(container):
@@ -258,70 +258,55 @@ def _generate_asym_update(container):
         container['body']['payload'] = _asym_parsers[cipher]
     return _update_asym
 
-_mepr_cipher_update = _callback_multi(
-    _gen_dispatch(_mepr, _mac_parsers, 'mac'), 
-    _generate_asym_update(_mepr))
-_mepr['version'].register_callback('prepack', _gen_dispatch(_mepr, _mepr_lookup, 'body'))
-_mepr['version'].register_callback('postunpack', _gen_dispatch(_mepr, _mepr_lookup, 'body'))
-_mepr['cipher'].register_callback('prepack', _mepr_cipher_update)
-_mepr['cipher'].register_callback('postunpack', _mepr_cipher_update)
+_mear_cipher_update = _callback_multi(
+    _gen_dispatch(_mear, _mac_parsers, 'mac'), 
+    _generate_asym_update(_mear))
+_mear['version'].register_callback('prepack', _gen_dispatch(_mear, _mear_lookup, 'body'))
+_mear['version'].register_callback('postunpack', _gen_dispatch(_mear, _mear_lookup, 'body'))
+_mear['cipher'].register_callback('prepack', _mear_cipher_update)
+_mear['cipher'].register_callback('postunpack', _mear_cipher_update)
 
 # ----------------------------------------------------------------------
-# MPAK format blocks
+# Asymmetric payload format blocks
 
-_mpak = SmartyParser()
-_mpak['magic'] = ParseHelper(parsers.Literal(b'MPAK'))
-_mpak['version'] = ParseHelper(parsers.Int32(signed=False))
-_mpak['cipher'] = ParseHelper(parsers.Int8(signed=False))
-_mpak['body'] = None
-_mpak['muid'] = generate_muid_parser()
-_mpak['mac'] = None
+_asym_pr_payload = SmartyParser()
+_asym_pr_payload['target'] = generate_muid_parser()
+_asym_pr_payload['key_length'] = ParseHelper(parsers.Int8(signed=False))
+_asym_pr_payload['key'] = ParseHelper(parsers.Blob())
+_asym_pr_payload.link_length('key', 'key_length')
 
-_mpak_lookup = {}
-_mpak_lookup[6] = SmartyParser()
-_mpak_lookup[6]['recipient'] = generate_muid_parser()
-_mpak_lookup[6]['payload'] = None
-    
-# This should keep working even with the addition of new version numbers
-def _generate_asym_update(container):
-    def _update_asym(cipher):
-        container['body']['payload'] = _asym_parsers[cipher]
-    return _update_asym
+_asym_ak_payload = SmartyParser()
+_asym_ak_payload['target'] = generate_muid_parser()
+_asym_ak_payload['status'] = ParseHelper(parsers.Int32(signed=False))
 
-_mpak_cipher_update = _callback_multi(
-    _gen_dispatch(_mpak, _mac_parsers, 'mac'), 
-    _generate_asym_update(_mpak))
-_mpak['version'].register_callback('prepack', _gen_dispatch(_mpak, _mpak_lookup, 'body'))
-_mpak['version'].register_callback('postunpack', _gen_dispatch(_mpak, _mpak_lookup, 'body'))
-_mpak['cipher'].register_callback('prepack', _mpak_cipher_update)
-_mpak['cipher'].register_callback('postunpack', _mpak_cipher_update)
+_asym_nk_payload = SmartyParser()
+_asym_nk_payload['target'] = generate_muid_parser()
+_asym_nk_payload['status'] = ParseHelper(parsers.Int32(signed=False))
 
-# ----------------------------------------------------------------------
-# MPNK format blocks
+_asym_pr = SmartyParser()
+_asym_pr['author'] = generate_muid_parser()
+_asym_pr['id'] = ParseHelper(parsers.Literal(b'PR'))
+_asym_pr['payload_length'] = ParseHelper(parsers.Int16(signed=False))
+_asym_pr['payload'] = _asym_pr_payload
+_asym_pr.link_length('payload', 'payload_length')
 
-_mpnk = SmartyParser()
-_mpnk['magic'] = ParseHelper(parsers.Literal(b'MPNK'))
-_mpnk['version'] = ParseHelper(parsers.Int32(signed=False))
-_mpnk['cipher'] = ParseHelper(parsers.Int8(signed=False))
-_mpnk['body'] = None
-_mpnk['muid'] = generate_muid_parser()
-_mpnk['mac'] = None
+_asym_ak = SmartyParser()
+_asym_ak['author'] = generate_muid_parser()
+_asym_ak['id'] = ParseHelper(parsers.Literal(b'AK'))
+_asym_ak['payload_length'] = ParseHelper(parsers.Int16(signed=False))
+_asym_ak['payload'] = _asym_ak_payload
+_asym_ak.link_length('payload', 'payload_length')
 
-_mpnk_lookup = {}
-_mpnk_lookup[6] = SmartyParser()
-_mpnk_lookup[6]['recipient'] = generate_muid_parser()
-_mpnk_lookup[6]['payload'] = None
-    
-# This should keep working even with the addition of new version numbers
-def _generate_asym_update(container):
-    def _update_asym(cipher):
-        container['body']['payload'] = _asym_parsers[cipher]
-    return _update_asym
+_asym_nk = SmartyParser()
+_asym_nk['author'] = generate_muid_parser()
+_asym_nk['id'] = ParseHelper(parsers.Literal(b'NK'))
+_asym_nk['payload_length'] = ParseHelper(parsers.Int16(signed=False))
+_asym_nk['payload'] = _asym_nk_payload
+_asym_nk.link_length('payload', 'payload_length')
 
-_mpnk_cipher_update = _callback_multi(
-    _gen_dispatch(_mpnk, _mac_parsers, 'mac'), 
-    _generate_asym_update(_mpnk))
-_mpnk['version'].register_callback('prepack', _gen_dispatch(_mpnk, _mpnk_lookup, 'body'))
-_mpnk['version'].register_callback('postunpack', _gen_dispatch(_mpnk, _mpnk_lookup, 'body'))
-_mpnk['cipher'].register_callback('prepack', _mpnk_cipher_update)
-_mpnk['cipher'].register_callback('postunpack', _mpnk_cipher_update)
+_asym_else = SmartyParser()
+_asym_else['author'] = generate_muid_parser()
+_asym_else['id'] = ParseHelper(parsers.Literal(b'\x00\x00'))
+_asym_else['payload_length'] = ParseHelper(parsers.Int16(signed=False))
+_asym_else['payload'] = ParseHelper(parsers.Blob())
+_asym_else.link_length('payload', 'payload_length')

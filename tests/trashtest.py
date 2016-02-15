@@ -36,24 +36,34 @@ mupy: A python library for Muse object manipulation.
 import sys
 import collections
 
+# These are normal inclusions
+from mupy import Muid
+
+# These are abnormal (don't use in production) inclusions
 from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _asym_nk, _asym_else
+from mupy._spec import _dummy_signature
+from mupy._spec import _dummy_mac
+from mupy._spec import _dummy_asym
+from mupy._spec import _dummy_address
 
 # ###############################################
 # Testing
 # ###############################################
+
+_dummy_muid = Muid(0, _dummy_address)
                 
 if __name__ == '__main__':
     # MEOC test parsers
     meoc_1 = {
-        'magic': None,
+        'magic': b'MEOC',
         'version': 14,
         'cipher': 0,
         'body': {
-            'author': {'algo': 0, 'address': None},
+            'author': _dummy_muid,
             'payload': b'Hello world',
         },
-        'muid': {'algo': 0, 'address': None},
-        'signature': None
+        'muid': _dummy_muid,
+        'signature': _dummy_signature
     }
     
     meoc_1p = _meoc.pack(meoc_1)
@@ -61,15 +71,15 @@ if __name__ == '__main__':
     
     # MOBS test parsers
     mobs_1 = {
-        'magic': None,
+        'magic': b'MOBS',
         'version': 6,
         'cipher': 0,
         'body': {
-            'binder': {'algo': 0, 'address': None},
-            'target': {'algo': 0, 'address': None},
+            'binder': _dummy_muid,
+            'target': _dummy_muid,
         },
-        'muid': {'algo': 0, 'address': None},
-        'signature': None
+        'muid': _dummy_muid,
+        'signature': _dummy_signature
     }
     
     mobs_1p = _mobs.pack(mobs_1)
@@ -77,17 +87,17 @@ if __name__ == '__main__':
     
     # MOBD test parsers
     mobd_1 = {
-        'magic': None,
+        'magic': b'MOBD',
         'version': 13,
         'cipher': 0,
         'body': {
-            'binder': {'algo': 0, 'address': None},
+            'binder': _dummy_muid,
             'history': [],
-            'targets': [{'algo': 0, 'address': None}, {'algo': 0, 'address': None}],
-            'muid_dynamic': {'algo': 0, 'address': None},
+            'targets': [_dummy_muid, _dummy_muid],
+            'muid_dynamic': _dummy_muid,
         },
-        'muid': {'algo': 0, 'address': None},
-        'signature': None
+        'muid': _dummy_muid,
+        'signature': _dummy_signature
     }
     
     mobd_1p = _mobd.pack(mobd_1)
@@ -95,15 +105,15 @@ if __name__ == '__main__':
     
     # MDXX test parsers
     mdxx_1 = {
-        'magic': None,
+        'magic': b'MDXX',
         'version': 7,
         'cipher': 0,
         'body': {
-            'debinder': {'algo': 0, 'address': None},
-            'targets': [{'algo': 0, 'address': None}, {'algo': 0, 'address': None}],
+            'debinder': _dummy_muid,
+            'targets': [_dummy_muid, _dummy_muid],
         },
-        'muid': {'algo': 0, 'address': None},
-        'signature': None
+        'muid': _dummy_muid,
+        'signature': _dummy_signature
     }
     
     mdxx_1p = _mdxx.pack(mdxx_1)
@@ -111,15 +121,15 @@ if __name__ == '__main__':
     
     # MEPR test parsers
     mear_1 = {
-        'magic': None,
+        'magic': b'MEAR',
         'version': 12,
         'cipher': 0,
         'body': {
-            'recipient': {'algo': 0, 'address': None},
-            'payload': None,
+            'recipient': _dummy_muid,
+            'payload': _dummy_asym,
         },
-        'muid': {'algo': 0, 'address': None},
-        'mac': None
+        'muid': _dummy_muid,
+        'signature': _dummy_mac
     }
     
     mear_1p = _mear.pack(mear_1)
@@ -127,10 +137,10 @@ if __name__ == '__main__':
     
     # Asymmetric payload blob tests.
     asym_pr_1 = {
-        'author': {'algo': 0, 'address': None},
+        'author': _dummy_muid,
         'id': b'PR',
         'payload': {
-            'target': {'algo': 0, 'address': None},
+            'target': _dummy_muid,
             'key': bytes(32)
         }
     }
@@ -138,10 +148,10 @@ if __name__ == '__main__':
     asym_pr_1r = _asym_pr.unpack(asym_pr_1p)
     
     asym_ak_2 = {
-        'author': {'algo': 0, 'address': None},
+        'author': _dummy_muid,
         'id': b'AK',
         'payload': {
-            'target': {'algo': 0, 'address': None},
+            'target': _dummy_muid,
             'status': 0
         }
     }
@@ -149,10 +159,10 @@ if __name__ == '__main__':
     asym_ak_2r = _asym_ak.unpack(asym_ak_2p)
     
     asym_nk_3 = {
-        'author': {'algo': 0, 'address': None},
+        'author': _dummy_muid,
         'id': b'NK',
         'payload': {
-            'target': {'algo': 0, 'address': None},
+            'target': _dummy_muid,
             'status': 0
         }
     }
@@ -160,7 +170,7 @@ if __name__ == '__main__':
     asym_nk_3r = _asym_nk.unpack(asym_nk_3p)
     
     asym_else_4 = {
-        'author': {'algo': 0, 'address': None},
+        'author': _dummy_muid,
         'id': b'\x00\x00',
         'payload': b'Hello world'
     }

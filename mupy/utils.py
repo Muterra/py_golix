@@ -1,4 +1,6 @@
 '''
+Cross-library utilities excluded from core.py to avoid circular imports.
+
 LICENSING
 -------------------------------------------------
 
@@ -31,40 +33,17 @@ mupy: A python library for Muse object manipulation.
 
 '''
 
-# Control * imports
-__all__ = ['Muid']
-
-# Global dependencies
-import struct
-import abc
-
-
-import collections
-import io
-import os
-from warnings import warn
-
-# Inter-package dependencies
-
-# This is controlled by __all__ in _getlow.
-# Will import: 'MEOC', 'MOBS', 'MOBD', 'MDXX', 'MEPR', 'MPAK', 'MPNK'
-from ._getlow import *
-from .utils import Muid
+class Muid():
+    ''' Extremely lightweight class for MUIDs.
+    '''
+    __slots__ = ['algo', 'address']
+    
+    def __init__(self, algo, address):
+        self.algo = algo
+        self.address = address
         
+    def __getitem__(self, item):
+        return getattr(self, item)
         
-# ###############################################
-# Utilities
-# ###############################################
-
-
-# ###############################################
-# Helper objects
-# ###############################################
-
-
-# ###############################################
-# High-level Muse constructs
-# ###############################################
-
-class ObjectContainer():
-    pass
+    def __setitem__(self, item, value):
+        setattr(self, item, value)

@@ -40,6 +40,8 @@ from smartyparse import ListyParser
 from smartyparse import parsers
 from smartyparse import references
 
+from .utils import Muid
+
 # ----------------------------------------------------------------------
 # Hash algo identifier / length block
 
@@ -52,6 +54,18 @@ _hash_algo_lookup = {
 
 # ----------------------------------------------------------------------
 # MUID parsing block
+
+def _muid_transform(unpacked_spo):
+    ''' Transforms an unpacked SmartyParseObject into a .utils.Muid.
+    If using algo zero, also eliminates the address and replaces with
+    None.
+    '''
+    muid = Muid(algo=unpacked_spo['algo'], address=unpacked_spo['address'])
+    
+    if muid.algo == 0:
+        muid.address = None
+        
+    return muid
 
 def generate_muid_parser():
     muid_parser = SmartyParser()
@@ -68,6 +82,9 @@ def generate_muid_parser():
             
     muid_parser['algo'].register_callback('prepack', _muid_format)
     muid_parser['algo'].register_callback('postunpack', _muid_format)
+    
+    # Don't forget to transform the object back to a utils.Muid
+    muid_parser.register_callback('postunpack', _muid_transform, modify=True)
     
     return muid_parser
 
@@ -165,6 +182,8 @@ _meoc['version'].register_callback('postunpack', _gen_dispatch(_meoc, _meoc_look
 _meoc['cipher'].register_callback('prepack', _gen_dispatch(_meoc, _signature_parsers, 'signature'))
 _meoc['cipher'].register_callback('postunpack', _gen_dispatch(_meoc, _signature_parsers, 'signature'))
 
+_meoc.latest = max(list(_meoc_lookup))
+
 # ----------------------------------------------------------------------
 # MOBS format blocks
 
@@ -185,6 +204,8 @@ _mobs['version'].register_callback('prepack', _gen_dispatch(_mobs, _mobs_lookup,
 _mobs['version'].register_callback('postunpack', _gen_dispatch(_mobs, _mobs_lookup, 'body'))
 _mobs['cipher'].register_callback('prepack', _gen_dispatch(_mobs, _signature_parsers, 'signature'))
 _mobs['cipher'].register_callback('postunpack', _gen_dispatch(_mobs, _signature_parsers, 'signature'))
+
+_mobs.latest = max(list(_mobs_lookup))
 
 # ----------------------------------------------------------------------
 # MOBD format blocks
@@ -213,6 +234,8 @@ _mobd['version'].register_callback('postunpack', _gen_dispatch(_mobd, _mobd_look
 _mobd['cipher'].register_callback('prepack', _gen_dispatch(_mobd, _signature_parsers, 'signature'))
 _mobd['cipher'].register_callback('postunpack', _gen_dispatch(_mobd, _signature_parsers, 'signature'))
 
+_mobd.latest = max(list(_mobd_lookup))
+
 # ----------------------------------------------------------------------
 # MDXX format blocks
 
@@ -236,6 +259,8 @@ _mdxx['version'].register_callback('postunpack', _gen_dispatch(_mdxx, _mdxx_look
 _mdxx['cipher'].register_callback('prepack', _gen_dispatch(_mdxx, _signature_parsers, 'signature'))
 _mdxx['cipher'].register_callback('postunpack', _gen_dispatch(_mdxx, _signature_parsers, 'signature'))
 
+_mdxx.latest = max(list(_mdxx_lookup))
+
 # ----------------------------------------------------------------------
 # MEAR format blocks
 
@@ -245,7 +270,7 @@ _mear['version'] = ParseHelper(parsers.Int32(signed=False))
 _mear['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _mear['body'] = None
 _mear['muid'] = generate_muid_parser()
-_mear['mac'] = None
+_mear['signature'] = None
 
 _mear_lookup = {}
 _mear_lookup[12] = SmartyParser()
@@ -259,12 +284,14 @@ def _generate_asym_update(container):
     return _update_asym
 
 _mear_cipher_update = _callback_multi(
-    _gen_dispatch(_mear, _mac_parsers, 'mac'), 
+    _gen_dispatch(_mear, _mac_parsers, 'signature'), 
     _generate_asym_update(_mear))
 _mear['version'].register_callback('prepack', _gen_dispatch(_mear, _mear_lookup, 'body'))
 _mear['version'].register_callback('postunpack', _gen_dispatch(_mear, _mear_lookup, 'body'))
 _mear['cipher'].register_callback('prepack', _mear_cipher_update)
 _mear['cipher'].register_callback('postunpack', _mear_cipher_update)
+
+_mear.latest = max(list(_mear_lookup))
 
 # ----------------------------------------------------------------------
 # Asymmetric payload format blocks

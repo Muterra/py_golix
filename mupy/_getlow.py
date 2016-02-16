@@ -168,17 +168,20 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         return self.PARSER.pack(self._control)
         
     @classmethod
-    def _unpack(cls, data):
+    @abc.abstractmethod
+    def unpack(cls, data):
         ''' Performs raw unpacking with the smartyparser in self.PARSER.
         '''
         return cls.PARSER.unpack(data)
         
     @abc.abstractmethod
     def verify(self, *args, **kwargs):
+        ''' Verifies the public parts of the object.
+        '''
         pass
         
     @abc.abstractmethod
-    def finalize(self, data, cipher='default', address_algo='default', *args, **kwargs):
+    def finalize(self, cipher='default', address_algo='default', *args, **kwargs):
         ''' Encrypts, signs, etc. One-stop shop for object completion.
         Returns bytes.
         '''
@@ -191,14 +194,12 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         self.cipher = cipher
         self.address_algo = address_algo
         
-        # Generate the muid from the desired algo and the passed data
-        self.muid = Muid(self.address_algo, self._addresser.create(data))
-        
     @classmethod
     @abc.abstractmethod
-    def load(self, *args, **kwargs):
+    def load(cls, data, *args, **kwargs):
         ''' Decrypts, verifies, etc. One-stop shop for object loading.
-        Returns a generated object (MEOC, MOBS, etc) instance.
+        Returns a generated object (MEOC, MOBS, etc) instance. Requires
+        pre-existing knowledge of the author's identity.
         '''
         pass
        
@@ -212,7 +213,7 @@ class MEOC(_MuseObjectBase):
     '''
     PARSER = _meoc
     
-    def __init__(self, author, payload, *args, **kwargs):
+    def __init__(self, author, plaintext, *args, **kwargs):
         ''' Generates MEOC object.
         
         Author should be a utils.Muid object (or similar).
@@ -220,7 +221,7 @@ class MEOC(_MuseObjectBase):
         super().__init__(*args, **kwargs)
         
         self.author = author
-        self.payload = payload
+        self.plaintext = plaintext
         
     @property
     def payload(self):
@@ -252,26 +253,64 @@ class MEOC(_MuseObjectBase):
         # meaningless. Use None for temporary payloads.
         self._control['body']['author'] = value
         
-    def verify(self, *args, **kwargs):
-        pass
+    @classmethod
+    def unpack(cls, data):
+        ''' Performs raw unpacking with the smartyparser in self.PARSER.
+        '''
+        unpacked = super().unpack(data)
+        
+        # Extract args for cls()
+        author = unpacked['body']['author']
+        version = unpacked['version']
+        plaintext = None
+        obj = cls(author, plaintext, version=version)
+        
+        # Iterate through and assign all body fields
+        for fieldname in unpacked['body']:
+            obj._control['body'][fieldname] = unpacked['body'][fieldname]
+        
+        # The below also cannot be folded into super(), because cls() needs args
+        obj.cipher = unpacked['cipher']
+        obj.muid = unpacked['muid']
+        obj.signature = unpacked['signature']
+        
+        # Don't forget this part.
+        return obj
+        
+    def verify(self, public_key, *args, **kwargs):
+        ''' Requires existing knowledge of the public key (does not 
+        perform any kind of lookup).
+        '''
+        self._cipherer.verifier(public_key, self.signature, data=self.muid)
+        
+    def decrypt(self, secret_key):
+        self.plaintext = self._cipherer.symmetric_decryptor(secret_key, self.payload)
+        del secret_key
         
     @classmethod
-    def load(self, *args, **kwargs):
+    def load(cls, public_key, secret_key, data):
         ''' Decrypts, verifies, etc. One-stop shop for object loading.
         Returns a generated object (MEOC, MOBS, etc) instance.
         '''
-        pass
+        obj = cls.unpack(data)
+        obj.verify(public_key)
+        obj.decrypt(secret_key)
+        del secret_key
+        return obj
         
-    def finalize(self, private_key, *args, **kwargs):
+    def finalize(self, private_key, secret_key, *args, **kwargs):
         ''' Encrypts, signs, etc. One-stop shop for object completion.
         Returns bytes.
         '''
-        # This is here temporarily, until proper data collation has been added
-        # Call this first, so that we have data to pass to super()
-        data = None
+        # Call this to handle defaults for cipher='default' and address_algo='default'
+        super().finalize(*args, **kwargs)
         
-        super().finalize(data=data, *args, **kwargs)
-        self.signature = self._cipherer.signer(private_key, data)
+        self.payload = self._cipherer.symmetric_encryptor(secret_key, self.plaintext)
+        del secret_key
+        # Generate the muid from the desired algo and the passed data
+        hash_data = None
+        self.muid = Muid(self.address_algo, self._addresser.create(hash_data))
+        self.signature = self._cipherer.signer(private_key, self.muid)
         del private_key
         return self._pack()
         

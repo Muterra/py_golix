@@ -58,10 +58,15 @@ _dummy_muid = Muid(0, _dummy_address)
                 
 if __name__ == '__main__':
     # MEOC test object
-    meoc = MEOC(author=_dummy_muid, payload=b'Hello world')
-    meoc_1p = meoc.finalize(private_key=None, cipher=0, address_algo=0)
+    meoc_1 = MEOC(author=_dummy_muid, plaintext=b'Hello world')
+    meoc_1p = meoc_1.finalize(private_key=None, secret_key=None, cipher=0, address_algo=0)
     
-    meoc_1r = meoc._unpack(meoc_1p)
+    meoc_1r = MEOC.unpack(meoc_1p)
+    # This would be the step where you get the public key for the author
+    meoc_1r.verify(public_key=None)
+    meoc_1r.decrypt(secret_key=None)
+    # And as a full test
+    meoc_1rr = MEOC.load(public_key=None, secret_key=None, data=meoc_1p)
     
     # MOBS test parsers
     mobs_1 = {

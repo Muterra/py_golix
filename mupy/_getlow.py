@@ -35,10 +35,9 @@ mupy: A python library for Muse object manipulation.
 
 # Housekeeping
 DEFAULT_CIPHER = 1
-DEFAULT_ADDRESSER = 1
 
 # Control * imports
-__all__ = ['MEOC', 'MOBS', 'MOBD', 'MDXX', 'MEPR', 'MPAK', 'MPNK']
+__all__ = ['MEOC', 'MOBS', 'MOBD', 'MDXX', 'MEAR']
 
 # Global dependencies
 import abc
@@ -49,9 +48,6 @@ import inspect
 import struct
 import os
 from warnings import warn
-        
-# Interpackage stuff
-# from ._spec import generate_muse_parser
 
         
 # ###############################################
@@ -59,74 +55,41 @@ from warnings import warn
 # ###############################################
 
 
-from smartyparse import ParseHelper
-from smartyparse import SmartyParser
-from smartyparse import parsers
-
-
 # ###############################################
 # Helper objects and functions
 # ###############################################
 
 
-# Order of operations: post-unpack on magic registers callback for dispatch
-# as post-unpack on cipher suite
+from ._spec import _meoc
+from ._spec import _mobs
+from ._spec import _mobd
+from ._spec import _mdxx
+from ._spec import _mear
+from ._spec import _asym_pr
+from ._spec import _asym_ak
+from ._spec import _asym_nk
+from ._spec import _asym_else
+
+from .cipher import cipher_lookup
+from .cipher import hash_lookup
+from .cipher import DEFAULT_ADDRESSER
+from .cipher import DEFAULT_CIPHER
+
+from .utils import Muid
 
 
-def _extract_config(parent, expect_version):
-    cipher = parent['header']['version']
-    config = {}
-    config['version'] = cipher
-    config['cipher'] = parent['header']['cipher']
-    
-    # Add in lengths for fields based on cipher
-    try:
-        config.update(cipher_config_lookup[cipher])
-    except KeyError:
-        raise ValueError('Improper cipher suite declaration.')
-    
-    
-def _dispatch_meoc(parent):
-    # Builds the smartyparser for a MEOC into "parent" object
-    config = _extract_config(parent)
-    
-    # For now, hard-code version, and go from there. This will need refactoring
-    if config['version'] != 14:
-        raise ValueError('Improper MEOC version declaration.')
-        
-    
-    pass
-    
-    
-def _dispatch_mobs(parent):
-    # Builds the smartyparser into "parent" object
-    pass
-    
-    
-def _dispatch_mobd(parent):
-    # Builds the smartyparser into "parent" object
-    pass
-    
-    
-def _dispatch_mdxx(parent):
-    # Builds the smartyparser into "parent" object
-    pass
-    
-    
-def _dispatch_mepr(parent):
-    # Builds the smartyparser into "parent" object
-    pass
-    
-    
-def _dispatch_mpak(parent):
-    # Builds the smartyparser into "parent" object
-    pass
-    
-    
-def _dispatch_mpnk(parent):
-    # Builds the smartyparser into "parent" object
-    pass
-    
+def _attempt_asym_unpack(data):
+    for fmt in (_asym_pr, _asym_ak, _asym_nk, _asym_else):
+        try:
+            result = fmt.unpack(data)
+            break
+        except parsers.ParseError:
+            pass
+    # This means unsuccessful iteration through all parsers
+    else:
+        raise parsers.ParseError('Improperly formed asymmetric payload.')
+    return result
+
 
 # ###############################################
 # Low-level Muse object interfaces
@@ -141,96 +104,103 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
     Will this need a helper metaclass to do all of the callbacks for the
     parse handling? Or should that be @staticmethod?
     '''
-    MUSE_HEADER = SmartyParser()
-    MUSE_HEADER['magic'] = ParseHelper(parsers.Blob(length=4))
-    MUSE_HEADER['version'] = ParseHelper(parsers.Int32(signed=False))
-    MUSE_HEADER['cipher'] = ParseHelper(parsers.Int8(signed=False))
     
-    def __init__(self, address_algo='default', cipher='default', version='latest'):
-        self._raw = None
-        self._components = {}
-        
-        # Some housekeeping
-        self._components['magic'] = self.MAGIC
-        
+    def __init__(self, version='latest'):   
+        # Do this first to initialize state.
+        self._control = {
+            # This gets the value of the literal from the parser
+            'magic': self.PARSER['magic'].parser.value,
+            'version': None,
+            'cipher': None,
+            'body': {},
+            'muid': None,
+            'signature': None
+        }
+             
         # Handle the version infos, adjusting if version is latest
         if version == 'latest':
-            version = max(list(VERSION_DEFINITIONS))
-        self._components['version'] = version
-        
-        # Handle the ciphersuite, adjusting if default
-        if cipher == 'default':
-            cipher = DEFAULT_CIPHER
-        self._components['cipher'] = cipher
-        
-        # Handle the ciphersuite, adjusting if default
-        if address_algo == 'default':
-            address_algo = DEFAULT_ADDRESSER
-        self._components['address_algo'] = address_algo
-        
-    @classmethod
-    @abc.abstractmethod
-    def ingest(cls, obj):
-        ingested = collections.OrderedDict()
-        
-        for key, parsehelper in cls.MUSE_HEADER:
-            ingested[key] = parsehelper.parse(obj)
-            
-        return ingested
-        
-    @abc.abstractmethod
-    def verify(self):
-        pass
-        
-    @abc.abstractmethod
-    def sign(self):
-        ''' THIS (or signing_cleanup) SHOULD ALWAYS BE CALLED VIA 
-        super() TO ENFORCE GC OF self._cipher
-        
-        Alternatively, should this be transitioned to a context manager?
-        Maybe something that does the entire crypto? Or maybe that would
-        be better for the high-level object?
-        '''
-        self.signing_cleanup()
-        
-    def signing_cleanup(self):
-        ''' Performs any cleanup after final object generation.
-        '''
-        del self._cipher
+            version = self.PARSER.latest
+        self._control['version'] = version
         
     @property
-    def raw(self):
-        ''' Read-only attribute for the raw bytes associated with the 
-        object.
-        '''
-        if self._raw != None:
-            return self._raw
-        else:
-            raise RuntimeError('Raw bytes not yet generated.')
-           
-    @classmethod
-    def _parse_prep(cls, version):
-        ''' Puts together a parsing ordereddict.
-        '''
-        _parse_control = collections.OrderedDict()
+    def signature(self):
+        return self._control['signature']
         
-        # Create the ordereddict of object components
-        for key, value in cls.VERSION_DEFINITIONS[version]:
-            _parse_control[key] = value.add_offset(cls.GLOBAL_OFFSET)
-            
-    def _update_cipher(self, cipher):
-        self._cipher = cipher
+    @signature.setter
+    def signature(self, value):
+        self._control['signature'] = value
+        
+    @property
+    def muid(self):
+        return self._control['muid']
+        
+    @muid.setter
+    def muid(self, value):
+        self._control['muid'] = value
+        
+    @property
+    def version(self):
+        return self._control['version']
+        
+    @version.setter
+    def version(self, value):
+        self._control['version'] = value
         
     @property
     def cipher(self):
-        ''' Read-only, temporary access to the desired ciphersuite. Only
-        available during object building.
+        return self._control['cipher']
+        
+    @cipher.setter
+    def cipher(self, value):
+        self._control['cipher'] = value
+        
+    @property
+    def _cipherer(self):
+        return cipher_lookup(self.cipher)
+        
+    @property
+    def _addresser(self):
+        return hash_lookup(self.address_algo)
+        
+    def _pack(self):
+        ''' Performs raw packing using the smartyparser in self.PARSER.
         '''
-        try: 
-            return self._cipher
-        except AttributeError:
-            raise AttributeError('self.cipher unavailable at this time. It is '
-                                 'typically only available while building.')
+        return self.PARSER.pack(self._control)
+        
+    @classmethod
+    def _unpack(cls, data):
+        ''' Performs raw unpacking with the smartyparser in self.PARSER.
+        '''
+        return cls.PARSER.unpack(data)
+        
+    @abc.abstractmethod
+    def verify(self, *args, **kwargs):
+        pass
+        
+    @abc.abstractmethod
+    def finalize(self, data, cipher='default', address_algo='default', *args, **kwargs):
+        ''' Encrypts, signs, etc. One-stop shop for object completion.
+        Returns bytes.
+        '''
+        # Adjustment for defaults.
+        if cipher == 'default':
+            cipher = DEFAULT_CIPHER
+        if address_algo == 'default':
+            address_algo = DEFAULT_ADDRESSER
+        
+        self.cipher = cipher
+        self.address_algo = address_algo
+        
+        # Generate the muid from the desired algo and the passed data
+        self.muid = Muid(self.address_algo, self._addresser.create(data))
+        
+    @classmethod
+    @abc.abstractmethod
+    def load(self, *args, **kwargs):
+        ''' Decrypts, verifies, etc. One-stop shop for object loading.
+        Returns a generated object (MEOC, MOBS, etc) instance.
+        '''
+        pass
        
 
 class MEOC(_MuseObjectBase):
@@ -240,77 +210,70 @@ class MEOC(_MuseObjectBase):
     perform state management; simply transitions between encrypted bytes
     and unencrypted bytes.
     '''
-    MAGIC = b'MEOC'
-    # Don't forget to update the various things based on parsed values
+    PARSER = _meoc
     
     def __init__(self, author, payload, *args, **kwargs):
         ''' Generates MEOC object.
+        
+        Author should be a utils.Muid object (or similar).
         '''
         super().__init__(*args, **kwargs)
-        self.payload = payload
+        
         self.author = author
-        
-    def encrypt(self, secret_key):
-        ''' Encrypts the payload and readies the object for signing.
-        '''
-        self._parse_control = self._parse_prep(self._components['version'])
-        # Use ciphersuite to update appropriate lengths
-        # Encrypt payload
-        # Move encrypted payload into self._components['payload']
-        # Calculate payload length and apply it to self._components['payload_length']
-        # Use parse control to figure out how large of a bytearray to reserve
-        # memoryview() that
-        # Load everything into the memoryview
-        # Calculate file hash from that
-        
-    def sign(self, private_key):
-        ''' Signs MEOC object and returns resulting bytes.
-        '''
-        pass
-        
-    @classmethod
-    def ingest(cls, obj):
-        ''' Loads (but does not open) an object. Basically, digestion 
-        into component parts. Performs a length check during operation,
-        and will fail if lengths are declared incorrectly, but otherwise
-        does not perform any validation.
-        '''
-        pass
-        
-    def verify(self, public_key):
-        ''' Verifies the signature of a loaded MEOC, as well as its
-        file hash, etc.
-        '''
-        pass
-        
-    def decrypt(self, secret_key):
-        ''' Decrypts the payload and returns the resulting bytes object.
-        '''
-        pass
-        
-    @property
-    def author(self):
-        return self._components['author']
-        
-    @author.setter
-    def author(self, value):
-        self._components['author'] = value
-        
-    @author.deleter
-    def author(self, key):
-        del self._components['author']
+        self.payload = payload
         
     @property
     def payload(self):
-        return self._plaintext
-        
+        # This should never not be defined, but subclasses might screw with
+        # that assumption.
+        try:
+            return self._control['body']['payload']
+        except KeyError as e:
+            raise AttributeError('Payload not yet defined.') from e
+            
     @payload.setter
     def payload(self, value):
-        self._plaintext = value
+        # DON'T implement a deleter, because without a payload, this is
+        # meaningless. Use None for temporary payloads.
+        self._control['body']['payload'] = value
         
-    @payload.deleter
-    def payload(self, key):
-        self._plaintext = None
+    @property
+    def author(self):
+        # This should never not be defined, but subclasses might screw with
+        # that assumption.
+        try:
+            return self._control['body']['author']
+        except KeyError as e:
+            raise AttributeError('Author not yet defined.') from e
+            
+    @author.setter
+    def author(self, value):
+        # DON'T implement a deleter, because without a payload, this is
+        # meaningless. Use None for temporary payloads.
+        self._control['body']['author'] = value
+        
+    def verify(self, *args, **kwargs):
+        pass
+        
+    @classmethod
+    def load(self, *args, **kwargs):
+        ''' Decrypts, verifies, etc. One-stop shop for object loading.
+        Returns a generated object (MEOC, MOBS, etc) instance.
+        '''
+        pass
+        
+    def finalize(self, private_key, *args, **kwargs):
+        ''' Encrypts, signs, etc. One-stop shop for object completion.
+        Returns bytes.
+        '''
+        # This is here temporarily, until proper data collation has been added
+        # Call this first, so that we have data to pass to super()
+        data = None
+        
+        super().finalize(data=data, *args, **kwargs)
+        self.signature = self._cipherer.signer(private_key, data)
+        del private_key
+        return self._pack()
         
 
 class MOBS(_MuseObjectBase):
@@ -319,30 +282,12 @@ class MOBS(_MuseObjectBase):
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    def __init__(self, binder, target, address_algo=1, cipher='default', version='latest'):
+    PARSER = _mobs
+    
+    def __init__(self, binder, target, *args, **kwargs):
         ''' Generates object and readies it for signing.
         '''
-        super().__init__()
-        
-    def sign(self, private_key):
-        ''' Signs object and returns resulting bytes.
-        '''
-        pass
-        
-    @classmethod
-    def ingest(cls, obj):
-        ''' Loads (but does not open) an object. Basically, digestion 
-        into component parts. Performs a length check during operation,
-        and will fail if lengths are declared incorrectly, but otherwise
-        does not perform any validation.
-        '''
-        pass
-        
-    def verify(self, public_key):
-        ''' Verifies the signature of a loaded object, as well as its
-        file hash, etc.
-        '''
-        pass
+        super().__init__(*args, **kwargs)
         
 
 class MOBD(_MuseObjectBase):
@@ -351,33 +296,14 @@ class MOBD(_MuseObjectBase):
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    def __init__(self, binder, target, history=None, dynamic_address=None,
-                 address_algo=1, cipher='default', version='latest'):
+    PARSER = _mobd
+    
+    def __init__(self, binder, targets, history=None, dynamic_address=None, *args, **kwargs):
         ''' Generates object and readies it for signing.
         
         Target must be list. History, if defined, must be list.
         '''
-        super().__init__()
-        
-    def sign(self, private_key):
-        ''' Signs object and returns resulting bytes.
-        '''
-        pass
-        
-    @classmethod
-    def ingest(cls, obj):
-        ''' Loads (but does not open) an object. Basically, digestion 
-        into component parts. Performs a length check during operation,
-        and will fail if lengths are declared incorrectly, but otherwise
-        does not perform any validation.
-        '''
-        pass
-        
-    def verify(self, public_key):
-        ''' Verifies the signature of a loaded object, as well as its
-        file hash, etc.
-        '''
-        pass
+        super().__init__(*args, **kwargs)
         
 
 class MDXX(_MuseObjectBase):
@@ -386,164 +312,54 @@ class MDXX(_MuseObjectBase):
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    def __init__(self, debinder, target, address_algo=1, cipher='default', version='latest'):
+    PARSER = _mdxx
+    
+    def __init__(self, debinder, targets, *args, **kwargs):
         ''' Generates object and readies it for signing.
         
         Target must be list.
         '''
-        super().__init__()
-        
-    def sign(self, private_key):
-        ''' Signs object and returns resulting bytes.
-        '''
-        pass
-        
-    @classmethod
-    def ingest(cls, obj):
-        ''' Loads (but does not open) an object. Basically, digestion 
-        into component parts. Performs a length check during operation,
-        and will fail if lengths are declared incorrectly, but otherwise
-        does not perform any validation.
-        '''
-        pass
-        
-    def verify(self, public_key):
-        ''' Verifies the signature of a loaded object, as well as its
-        file hash, etc.
-        '''
-        pass
+        super().__init__(*args, **kwargs)
         
 
-class MEPR(_MuseObjectBase):
+class MEAR(_MuseObjectBase):
     ''' Muse encrypted pipe request.
     
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    def __init__(self, recipient, author, target, target_secret,
-                 address_algo=1, cipher='default', version='latest'):
-        ''' Generates object and readies it for signing.
-        
-        Target must be list.
-        '''
-        super().__init__()
-        
-    def encrypt(self, public_key):
-        ''' Encrypts the payload and readies the object for signing.
-        '''
-        pass
-        
-    def sign(self, shared_secret):
-        ''' HMAC the object and return resulting bytes.
-        '''
-        pass
-        
-    @classmethod
-    def ingest(cls, obj):
-        ''' Loads (but does not open) an object. Basically, digestion 
-        into component parts. Performs a length check during operation,
-        and will fail if lengths are declared incorrectly, but otherwise
-        does not perform any validation.
-        '''
-        pass
-        
-    def verify(self, shared_secret=None):
-        ''' Verifies the file hash, etc. If shared_secret is supplied, 
-        also verifies the HMAC.
-        '''
-        pass
-
-    def decrypt(self, private_key):
-        ''' Decrypts the payload and returns the resulting bytes object.
-        '''
-        pass
-        
-
-class MPAK(_MuseObjectBase):
-    ''' Muse pipe acknowledgement.
+    PARSER = _mear
     
-    Low level object. In most cases, you don't want this. Does not
-    perform state management.
-    '''
-    def __init__(self, recipient, author, target, status_code=None,
-                 address_algo=1, cipher='default', version='latest'):
+    def __init__(self, recipient, author, payload_id, payload, *args, **kwargs):
         ''' Generates object and readies it for signing.
         
         Target must be list.
         '''
-        super().__init__()
-        
-    def encrypt(self, public_key):
-        ''' Encrypts the payload and readies the object for signing.
-        '''
-        pass
-        
-    def sign(self, shared_secret):
-        ''' HMAC the object and return resulting bytes.
-        '''
-        pass
-        
-    @classmethod
-    def ingest(cls, obj):
-        ''' Loads (but does not open) an object. Basically, digestion 
-        into component parts. Performs a length check during operation,
-        and will fail if lengths are declared incorrectly, but otherwise
-        does not perform any validation.
-        '''
-        pass
-        
-    def verify(self, shared_secret=None):
-        ''' Verifies the file hash, etc. If shared_secret is supplied, 
-        also verifies the HMAC.
-        '''
-        pass
+        super().__init__(*args, **kwargs)
 
-    def decrypt(self, private_key):
-        ''' Decrypts the payload and returns the resulting bytes object.
-        '''
-        pass
-        
 
-class MPNK(_MuseObjectBase):
-    ''' Muse pipe non-acknowledgement.
-    
-    Low level object. In most cases, you don't want this. Does not
-    perform state management.
-    '''
-    def __init__(self, recipient, author, target, status_code=None,
-                 address_algo=1, cipher='default', version='latest'):
-        ''' Generates object and readies it for signing.
-        
-        Target must be list.
-        '''
-        super().__init__()
-        
-    def encrypt(self, public_key):
-        ''' Encrypts the payload and readies the object for signing.
-        '''
-        pass
-        
-    def sign(self, shared_secret):
-        ''' HMAC the object and return resulting bytes.
-        '''
-        pass
-        
-    @classmethod
-    def ingest(cls, obj):
-        ''' Loads (but does not open) an object. Basically, digestion 
-        into component parts. Performs a length check during operation,
-        and will fail if lengths are declared incorrectly, but otherwise
-        does not perform any validation.
-        '''
-        pass
-        
-    def verify(self, shared_secret=None):
-        ''' Verifies the file hash, etc. If shared_secret is supplied, 
-        also verifies the HMAC.
-        '''
-        pass
+def _attempt_asym_unpack(data):
+    for fmt in (_asym_pr, _asym_ak, _asym_nk, _asym_else):
+        try:
+            result = fmt.unpack(data)
+            break
+        except parsers.ParseError:
+            pass
+    # This means unsuccessful iteration through all parsers
+    else:
+        raise parsers.ParseError('Improperly formed asymmetric payload.')
+    return result
 
-    def decrypt(self, private_key):
-        ''' Decrypts the payload and returns the resulting bytes object.
-        '''
-        pass
+
+def unpack_any(data):
+    for fmt in (MEOC, MOBS, MOBD, MDXX, MEAR):
+        try:
+            result = fmt.unpack(data)
+            break
+        except parsers.ParseError:
+            pass
+    # This means unsuccessful iteration through all parsers
+    else:
+        raise parsers.ParseError('Data does not appear to be a Muse object.')
+    return result
+        

@@ -1,5 +1,5 @@
 '''
-Scratchpad for test-based development.
+Scratchpad for test-based development. Unit tests for _spec.py.
 
 LICENSING
 -------------------------------------------------
@@ -39,16 +39,12 @@ import collections
 # These are normal inclusions
 from mupy import Muid
 
-# These are abnormal (don't use in production) inclusions.
-from mupy._getlow import MEOC
-
+# These are abnormal (don't use in production) inclusions
+from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _asym_nk, _asym_else
 from mupy._spec import _dummy_signature
 from mupy._spec import _dummy_mac
 from mupy._spec import _dummy_asym
 from mupy._spec import _dummy_address
-
-# These are soon-to-be-removed abnormal imports
-from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _asym_nk, _asym_else
 
 # ###############################################
 # Testing
@@ -57,11 +53,21 @@ from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _a
 _dummy_muid = Muid(0, _dummy_address)
                 
 if __name__ == '__main__':
-    # MEOC test object
-    meoc = MEOC(author=_dummy_muid, payload=b'Hello world')
-    meoc_1p = meoc.finalize(private_key=None, cipher=0, address_algo=0)
+    # MEOC test parsers
+    meoc_1 = {
+        'magic': b'MEOC',
+        'version': 14,
+        'cipher': 0,
+        'body': {
+            'author': _dummy_muid,
+            'payload': b'Hello world',
+        },
+        'muid': _dummy_muid,
+        'signature': _dummy_signature
+    }
     
-    meoc_1r = meoc._unpack(meoc_1p)
+    meoc_1p = _meoc.pack(meoc_1)
+    meoc_1r = _meoc.unpack(meoc_1p)
     
     # MOBS test parsers
     mobs_1 = {

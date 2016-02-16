@@ -37,7 +37,7 @@ todo: transition this to a single crypto library.
 '''
 
 # Control * imports
-__all__ = ['CIPHER_SUITES', 'ADDRESS_ALGOS', 'AddressAlgo1', 'CipherSuite1', 'CipherSuite2']
+__all__ = ['cipher_lookup', 'hash_lookup', 'AddressAlgo1', 'CipherSuite1', 'CipherSuite2']
 
 # Global dependencies
 import io
@@ -62,9 +62,32 @@ from Crypto.Signature import pss
 # def MGF1_SHA512(*args):
 #     return PKCS1_PSS.MGF1(*args, hash=SHA512)
 
+# Interpackage dependencies
+from ._spec import _dummy_asym
+from ._spec import _dummy_mac
+from ._spec import _dummy_signature
+from ._spec import _dummy_address
+
+
+# Some globals
+DEFAULT_ADDRESSER = 1
+DEFAULT_CIPHER = 1
+
 
 class _AddressAlgoBase(metaclass=abc.ABCMeta):
-    pass
+    @classmethod
+    @abc.abstractmethod
+    def create(cls, data):
+        ''' Creates an address (note: not the whole muid) from data.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def verify(cls, data, hash):
+        ''' Verifies an address (note: not the whole muid) from data.
+        '''
+        pass
     
     
 class AddressAlgo0(_AddressAlgoBase):
@@ -73,7 +96,13 @@ class AddressAlgo0(_AddressAlgoBase):
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
     '''
-    pass
+    @classmethod
+    def create(cls, data):
+        return _dummy_address
+        
+    @classmethod
+    def verify(cls, data, hash):
+        return True
     
     
 class AddressAlgo1(_AddressAlgoBase):
@@ -94,16 +123,16 @@ class _CipherSuiteBase(metaclass=abc.ABCMeta):
         def symmetric_encryptor (data, key):
         def symmetric_decryptor (data, key):
     '''    
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def hasher(data):
+    def hasher(cls, data):
         ''' The hasher used for information addressing.
         '''
         pass
     
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def signer(data, private_key):
+    def signer(cls, private_key, data):
         ''' Placeholder signing method.
         
         Data must be bytes-like. Private key should be a dictionary 
@@ -111,9 +140,9 @@ class _CipherSuiteBase(metaclass=abc.ABCMeta):
         '''
         pass
         
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def verifier(data, public_key, signature):
+    def verifier(cls, public_key, signature, data):
         ''' Verifies an author's signature against bites. Errors out if 
         unsuccessful. Returns True if successful.
         
@@ -123,9 +152,9 @@ class _CipherSuiteBase(metaclass=abc.ABCMeta):
         '''
         pass
         
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def public_encryptor(data, public_key):
+    def public_encryptor(cls, public_key, data):
         ''' Placeholder asymmetric encryptor.
         
         Data should be bytes-like. Public key should be a dictionary 
@@ -133,9 +162,9 @@ class _CipherSuiteBase(metaclass=abc.ABCMeta):
         '''
         pass
         
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def private_decryptor(data, private_key):
+    def private_decryptor(cls, private_key, data):
         ''' Placeholder asymmetric decryptor.
         
         Data should be bytes-like. Public key should be a dictionary 
@@ -143,29 +172,23 @@ class _CipherSuiteBase(metaclass=abc.ABCMeta):
         '''
         pass
         
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def symmetric_encryptor(data, key):
+    def symmetric_encryptor(cls, key, data):
         ''' Placeholder symmetric encryptor.
         
         Data should be bytes-like. Key should be bytes-like.
         '''
         pass
         
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def symmetric_decryptor(data, key):
+    def symmetric_decryptor(cls, key, data):
         ''' Placeholder symmetric decryptor.
         
         Data should be bytes-like. Key should be bytes-like.
         '''
         pass
-        
-    @property
-    def cipher_number(self):
-        ''' Returns the cipher number.
-        '''
-        return self._CIPHER_NUMBER
         
         
 class CipherSuite0(_CipherSuiteBase):
@@ -174,7 +197,76 @@ class CipherSuite0(_CipherSuiteBase):
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
     '''
-    pass
+    @classmethod
+    def hasher(cls, *args, **kwargs):
+        ''' The hasher used for information addressing.
+        '''
+        return None
+    
+    @classmethod
+    def signer(cls, *args, **kwargs):
+        ''' Placeholder signing method.
+        
+        Data must be bytes-like. Private key should be a dictionary 
+        formatted with all necessary components for a private key (?).
+        '''
+        return _dummy_signature
+        
+    @classmethod
+    def verifier(cls, *args, **kwargs):
+        ''' Verifies an author's signature against bites. Errors out if 
+        unsuccessful. Returns True if successful.
+        
+        Data must be bytes-like. public_key should be a dictionary 
+        formatted with all necessary components for a public key (?).
+        Signature must be bytes-like.
+        '''
+        return True
+        
+    @classmethod
+    def public_encryptor(cls, *args, **kwargs):
+        ''' Placeholder asymmetric encryptor.
+        
+        Data should be bytes-like. Public key should be a dictionary 
+        formatted with all necessary components for a public key.
+        '''
+        return _dummy_asym
+        
+    @classmethod
+    def private_decryptor(cls, *args, **kwargs):
+        ''' Placeholder asymmetric decryptor.
+        
+        Maybe add kwarguments do define what kind of internal object is
+        returned? That would be smart.
+        
+        Or, even better, do an arbitrary object content, and then encode
+        what class of internal object to use there. That way, it's not
+        possible to accidentally encode secrets publicly, but you can 
+        also emulate behavior of normal exchange.
+        
+        Data should be bytes-like. Public key should be a dictionary 
+        formatted with all necessary components for a public key.
+        '''
+        # Note that this will error out when trying to load components,
+        # since it's 100% an invalid declaration of internal content.
+        # But, it's a good starting point.
+        return _dummy_asym
+        
+    @classmethod
+    def symmetric_encryptor(cls, *args, **kwargs):
+        ''' Placeholder symmetric encryptor.
+        
+        Data should be bytes-like. Key should be bytes-like.
+        '''
+        return b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
+        
+    @classmethod
+    def symmetric_decryptor(cls, *args, **kwargs):
+        ''' Placeholder symmetric decryptor.
+        
+        Data should be bytes-like. Key should be bytes-like.
+        '''
+        return b'[[ PLACEHOLDER DECRYPTED SYMMETRIC MESSAGE. Hello world! ]]'
 
 
 class CipherSuite1(_CipherSuiteBase):
@@ -182,8 +274,8 @@ class CipherSuite1(_CipherSuiteBase):
     
     Generic, all-static-method class for cipher suite #1.
     '''
-    @staticmethod
-    def hasher(data):
+    @classmethod
+    def hasher(cls, data):
         ''' Man, this bytes.'''
         # Create the hash. This may move to cryptography.io in the future.
         h = hashlib.sha512()
@@ -194,7 +286,7 @@ class CipherSuite1(_CipherSuiteBase):
         return h.digest()
         
     @classmethod
-    def signer(cls, data, private_key):
+    def signer(cls, private_key, data):
         pre_tuple = []
         
         # Extract the needed values and construct the private key
@@ -254,7 +346,7 @@ class CipherSuite1(_CipherSuiteBase):
         return signature
 
     @classmethod
-    def verifier(cls, data, public_key, signature):
+    def verifier(cls, public_key, signature, data):
         ''' Verifies an author's signature against bites. Errors out if 
         unsuccessful. Returns True if successful.
         '''
@@ -280,8 +372,8 @@ class CipherSuite1(_CipherSuiteBase):
         # Success!
         return True
 
-    @staticmethod
-    def public_encryptor(data, public_key):
+    @classmethod
+    def public_encryptor(cls, public_key, data):
         # Extract needed values from the dictionary and create a public key
         n = public_key['modulus']
         e = public_key['publicExponent']
@@ -290,8 +382,8 @@ class CipherSuite1(_CipherSuiteBase):
         cipher = PKCS1_OAEP.new(pubkey, hashAlgo=SHA512)
         return cipher.encrypt(data)
 
-    @staticmethod
-    def private_decryptor(data, private_key):
+    @classmethod
+    def private_decryptor(cls, private_key, data):
         ''' Implements the EICa standard to unencrypt the payload, then 
         immediately deletes the key.
         '''
@@ -313,7 +405,7 @@ class CipherSuite1(_CipherSuiteBase):
         return plaintext
         
     @classmethod
-    def symmetric_encryptor(cls, data, key):
+    def symmetric_encryptor(cls, key, data):
         ''' Performs symmetric encryption of the supplied payload using 
         the supplied symmetric key.
         '''
@@ -333,7 +425,7 @@ class CipherSuite1(_CipherSuiteBase):
         return payload
 
     @classmethod
-    def symmetric_decryptor(cls, data, key):
+    def symmetric_decryptor(cls, key, data):
         ''' Performs symmetric decryption of the supplied payload using
         the supplied symmetric key.
         '''
@@ -370,3 +462,15 @@ ADDRESS_ALGOS = {
     0: AddressAlgo0,
     1: AddressAlgo1
 }
+
+def cipher_lookup(num):
+    try:
+        return CIPHER_SUITES[num]
+    except KeyError as e:
+        raise ValueError('Cipher suite "' + str(num) + '" is undefined.') from e
+    
+def hash_lookup(num):
+    try:
+        return ADDRESS_ALGOS[num]
+    except KeyError as e:
+        raise ValueError('Address algo "' + str(num) + '" is undefined.') from e

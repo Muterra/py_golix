@@ -73,11 +73,11 @@ if __name__ == '__main__':
     meoc_2p = meoc_2.finalize(private_key=None, secret_key=None, cipher=0, address_algo=1)
     
     meoc_2r = MEOC.unpack(meoc_2p)
-    # # This would be the step where you get the public key for the author
-    # meoc_2r.verify(public_key=None)
-    # meoc_2r.decrypt(secret_key=None)
-    # # And as a full test
-    # meoc_2rr = MEOC.load(public_key=None, secret_key=None, data=meoc_2p)
+    # This would be the step where you get the public key for the author
+    meoc_2r.verify(public_key=None)
+    meoc_2r.decrypt(secret_key=None)
+    # And as a full test
+    meoc_2rr = MEOC.load(public_key=None, secret_key=None, data=meoc_2p)
     
     # MOBS test parsers
     mobs_1 = {

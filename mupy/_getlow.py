@@ -326,13 +326,20 @@ class MEOC(_MuseObjectBase):
         
         # Accommodate SP
         unpacked, offset_cache = super().unpack(data)
+        address_offset = offset_cache.pop()
         
+        # Normal
         # Extract args for cls()
         author = unpacked['body']['author']
         version = unpacked['version']
         plaintext = None
         obj = cls(author, plaintext, version=version)
         
+        # Accommodate SP
+        obj._cache_address_offset = address_offset
+        obj._cache_raw = memoryview(data)
+        
+        # Normal
         # Iterate through and assign all body fields
         for fieldname in unpacked['body']:
             obj._control['body'][fieldname] = unpacked['body'][fieldname]
@@ -350,9 +357,12 @@ class MEOC(_MuseObjectBase):
         perform any kind of lookup).
         '''
         # Accommodate SP
-        _data_to_hash = None
+        address_offset = self._cache_address_offset
+        address_data = bytes(self._cache_raw[:address_offset])
         
-        self._addresser.verify(self.muid.address, _data_to_hash)
+        # Normal-ish
+        self._addresser.verify(self.muid.address, address_data)
+        # Normal
         self._cipherer.verifier(public_key, self.signature, data=self.muid.address)
         
     def decrypt(self, secret_key):

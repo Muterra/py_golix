@@ -57,7 +57,7 @@ from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _a
 _dummy_muid = Muid(0, _dummy_address)
                 
 if __name__ == '__main__':
-    # MEOC test object
+    # MEOC dummy test object
     meoc_1 = MEOC(author=_dummy_muid, plaintext=b'Hello world')
     meoc_1p = meoc_1.finalize(private_key=None, secret_key=None, cipher=0, address_algo=0)
     
@@ -67,6 +67,17 @@ if __name__ == '__main__':
     meoc_1r.decrypt(secret_key=None)
     # And as a full test
     meoc_1rr = MEOC.load(public_key=None, secret_key=None, data=meoc_1p)
+    
+    # MEOC hashed test object
+    meoc_2 = MEOC(author=_dummy_muid, plaintext=b'Hello worlddddddddd')
+    meoc_2p = meoc_2.finalize(private_key=None, secret_key=None, cipher=0, address_algo=1)
+    
+    meoc_2r = MEOC.unpack(meoc_2p)
+    # # This would be the step where you get the public key for the author
+    # meoc_2r.verify(public_key=None)
+    # meoc_2r.decrypt(secret_key=None)
+    # # And as a full test
+    # meoc_2rr = MEOC.load(public_key=None, secret_key=None, data=meoc_2p)
     
     # MOBS test parsers
     mobs_1 = {

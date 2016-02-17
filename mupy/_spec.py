@@ -48,7 +48,7 @@ from .utils import Muid
 _dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
 
 _hash_algo_lookup = {
-    0: ParseHelper(parsers.Literal(_dummy_address)),
+    0: ParseHelper(parsers.Literal(_dummy_address, verify=False)),
     1: ParseHelper(parsers.Blob(length=64))
 }
 
@@ -136,21 +136,21 @@ cipher_length_lookup = {
 _dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
 
 _signature_parsers = {}
-_signature_parsers[0] = ParseHelper(parsers.Literal(_dummy_signature))
+_signature_parsers[0] = ParseHelper(parsers.Literal(_dummy_signature, verify=False))
 _signature_parsers[1] = ParseHelper(parsers.Blob(length=512))
 _signature_parsers[2] = ParseHelper(parsers.Blob(length=512))
 
 _dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
 
 _mac_parsers = {}
-_mac_parsers[0] = ParseHelper(parsers.Literal(_dummy_mac))
+_mac_parsers[0] = ParseHelper(parsers.Literal(_dummy_mac, verify=False))
 _mac_parsers[1] = ParseHelper(parsers.Blob(length=64))
 _mac_parsers[2] = ParseHelper(parsers.Blob(length=64))
 
 _dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
 
 _asym_parsers = {}
-_asym_parsers[0] = ParseHelper(parsers.Literal(_dummy_asym))
+_asym_parsers[0] = ParseHelper(parsers.Literal(_dummy_asym, verify=False))
 _asym_parsers[1] = ParseHelper(parsers.Blob(length=512))
 _asym_parsers[2] = ParseHelper(parsers.Blob(length=512))
 
@@ -183,6 +183,23 @@ _meoc['cipher'].register_callback('prepack', _gen_dispatch(_meoc, _signature_par
 _meoc['cipher'].register_callback('postunpack', _gen_dispatch(_meoc, _signature_parsers, 'signature'))
 
 _meoc.latest = max(list(_meoc_lookup))
+
+# We need to refactor once smartyparse is rewritten to modify the same
+# object continuously. Currently, smartyparse handles nested smartyparsers
+# as their own independent unit, so you can't register a callback on the
+# whole set of data. Which is a problem. Basically, nested SP's have no
+# awareness of their surrounding file context, so you can't do a callback
+# to pull in their context. So currently, you have to do it as a multi-pass
+# thingajobber.
+
+def _meoc_hash(meoc_spo):
+    collated = (
+        meoc_spo['magic'],
+        meoc_spo['version'],
+        meoc_spo['cipher'],
+        meoc_spo['body']['author'],
+        meoc_spo['body'],
+    )
 
 # ----------------------------------------------------------------------
 # MOBS format blocks

@@ -49,16 +49,6 @@ import struct
 import os
 from warnings import warn
 
-        
-# ###############################################
-# Utilities
-# ###############################################
-
-
-# ###############################################
-# Helper objects and functions
-# ###############################################
-
 
 from ._spec import _meoc
 from ._spec import _mobs
@@ -70,12 +60,62 @@ from ._spec import _asym_ak
 from ._spec import _asym_nk
 from ._spec import _asym_else
 
+# Accommodate SP
+from ._spec import cipher_length_lookup
+
 from .cipher import cipher_lookup
 from .cipher import hash_lookup
 from .cipher import DEFAULT_ADDRESSER
 from .cipher import DEFAULT_CIPHER
+from .cipher import SecurityError
 
 from .utils import Muid
+
+        
+# ###############################################
+# Utilities
+# ###############################################
+
+# ----------------------------------------------------------------------
+# THIS MAKES ME FEEL DIRTY.
+# This is a total hack-up job to bend the smartyparse library to my will,
+# until such time as it can be rewritten to support more powerful callback
+# syntax, and access to global pack_into data for nested smartyparsers,
+# as well as some other issues. This isn't *exactly* a monkeypatch, but
+# it's close enough that I'll go ahead and monkeypatch the definition of
+# the word monkeypatch to suit my needs. In other news, the MetaPolice are
+# coming for me, and I have no defense lawyer.
+        
+# Strategy for gratuitous duck-punching: 
+# 1. Declare a mutable caching object: []
+# 2. Generate a caching callback on the fly, referencing that object
+# 3. Register that callback on the fly as postpack on muid, with modify=False
+# 4. That callback appends the muid's offset to the cache object
+# 5. Register a second callback on the entire _control
+# 6. That callback uses the offset to rewrite the hash with an actual hash
+# 7. Rewrite signature using the length of the hash and the cached hash offset
+
+# For other places this affects, search for "# Accommodate SP"
+        
+# This gets called postpack with modify=True on ['muid'], referencing
+# the _control object.
+def _generate_offset_cacher(cache, muid_parser):
+    # Relies upon late-binding closures to access the correct offset
+    def offset_cacher(*args, **kwargs):
+        start = muid_parser.offset + 1
+        cache.append(start)
+    return offset_cacher
+
+def _generate_muid_rewriter(parent_smartyparser, addresser):
+    def muid_rewriter(muid):
+        size = parent_smartyparser['muid'].length
+        section = slice(len(muid) - size, None)
+        muid[section] = addresser.create()
+
+
+# ###############################################
+# Helper objects and functions
+# ###############################################
 
 
 def _attempt_asym_unpack(data):
@@ -165,14 +205,29 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
     def _pack(self):
         ''' Performs raw packing using the smartyparser in self.PARSER.
         '''
-        return self.PARSER.pack(self._control)
+        # Accommodate SP
+        _offset_cache = []
+        offset_cacher = _generate_offset_cacher(_offset_cache, self.PARSER['muid'])
+        self.PARSER['muid'].register_callback('postpack', offset_cacher)
+        
+        return self.PARSER.pack(self._control), _offset_cache
+        
+        # # Normal
+        # return self.PARSER.pack(self._control)
         
     @classmethod
     @abc.abstractmethod
     def unpack(cls, data):
         ''' Performs raw unpacking with the smartyparser in self.PARSER.
         '''
-        return cls.PARSER.unpack(data)
+        # Accommodate SP
+        _offset_cache = []
+        offset_cacher = _generate_offset_cacher(_offset_cache, cls.PARSER['muid'])
+        cls.PARSER['muid'].register_callback('postunpack', offset_cacher)
+        return cls.PARSER.unpack(data), _offset_cache
+        
+        # # Normal
+        # return cls.PARSER.unpack(data)
         
     @abc.abstractmethod
     def verify(self, *args, **kwargs):
@@ -192,7 +247,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
             address_algo = DEFAULT_ADDRESSER
         
         self.cipher = cipher
-        self.address_algo = address_algo
+        self._address_algo = address_algo
         
     @classmethod
     @abc.abstractmethod
@@ -202,6 +257,15 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         pre-existing knowledge of the author's identity.
         '''
         pass
+        
+    @property
+    def address_algo(self):
+        if self.muid != None:
+            return self.muid.algo
+        elif self._address_algo != None:
+            return self._address_algo
+        else:
+            raise RuntimeError('Address algorithm not yet defined.')
        
 
 class MEOC(_MuseObjectBase):
@@ -257,7 +321,11 @@ class MEOC(_MuseObjectBase):
     def unpack(cls, data):
         ''' Performs raw unpacking with the smartyparser in self.PARSER.
         '''
-        unpacked = super().unpack(data)
+        # # Normal
+        # unpacked = super().unpack(data)
+        
+        # Accommodate SP
+        unpacked, offset_cache = super().unpack(data)
         
         # Extract args for cls()
         author = unpacked['body']['author']
@@ -281,7 +349,11 @@ class MEOC(_MuseObjectBase):
         ''' Requires existing knowledge of the public key (does not 
         perform any kind of lookup).
         '''
-        self._cipherer.verifier(public_key, self.signature, data=self.muid)
+        # Accommodate SP
+        _data_to_hash = None
+        
+        self._addresser.verify(self.muid.address, _data_to_hash)
+        self._cipherer.verifier(public_key, self.signature, data=self.muid.address)
         
     def decrypt(self, secret_key):
         self.plaintext = self._cipherer.symmetric_decryptor(secret_key, self.payload)
@@ -307,12 +379,35 @@ class MEOC(_MuseObjectBase):
         
         self.payload = self._cipherer.symmetric_encryptor(secret_key, self.plaintext)
         del secret_key
-        # Generate the muid from the desired algo and the passed data
-        hash_data = None
-        self.muid = Muid(self.address_algo, self._addresser.create(hash_data))
-        self.signature = self._cipherer.signer(private_key, self.muid)
+        
+        # Accommodate SP
+        muid_padding = bytes(self._addresser.ADDRESS_LENGTH)
+        self.muid = Muid(self.address_algo, muid_padding)
+        sig_padding = bytes(cipher_length_lookup[self.cipher]['sig'])
+        self.signature = sig_padding
+        
+        # # Normal
+        # del private_key
+        # packed = self._pack()
+        
+        # Accommodate SP
+        packed, _offset_cache = self._pack()
+        address_offset = _offset_cache.pop()
+        sig_offset = address_offset + self._addresser.ADDRESS_LENGTH
+        # Hash the packed data, until the appropriate point, and then sign
+        # Conversion to bytes necessary for PyCryptoDome API
+        address = self._addresser.create(bytes(packed[:address_offset]))
+        signature = self._cipherer.signer(private_key, address)
         del private_key
-        return self._pack()
+        # Rewrite packed with the hash and signature
+        packed[address_offset:sig_offset] = address
+        packed[sig_offset:] = signature
+        # Useful for anything referencing this post-build
+        self.muid = Muid(self.address_algo, address)
+        self.signature = signature
+        
+        # Normal
+        return packed
         
 
 class MOBS(_MuseObjectBase):

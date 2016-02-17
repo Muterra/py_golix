@@ -29,15 +29,24 @@ mupy: A python library for Muse object manipulation.
 
 ------------------------------------------------------
 
-DANGER DANGER DANGER: problem with PyCrypto on Windows. See:
-http://stackoverflow.com/
-    questions/24804829/another-one-about-pycrypto-and-paramiko
-    
-todo: transition this to a single crypto library.
+A NOTE ON RANDOM NUMBERS...
+PyCryptoDome sources randomness from os.urandom(). This should be secure
+for most applications. HOWEVER, if your system is low on entropy (can
+be an issue in high-demand applications like servers), urandom *will not
+block to wait for entropy*, and will revert (ish?) to potentially 
+insufficiently secure pseudorandom generation. In that case, it might be
+better to source from elsewhere (like a hardware RNG).
 '''
 
 # Control * imports
-__all__ = ['cipher_lookup', 'hash_lookup', 'AddressAlgo1', 'CipherSuite1', 'CipherSuite2']
+__all__ = [
+    'SecurityError',
+    'cipher_lookup', 
+    'hash_lookup', 
+    'AddressAlgo1', 
+    'CipherSuite1', 
+    'CipherSuite2'
+]
 
 # Global dependencies
 import io
@@ -48,19 +57,14 @@ import json
 import base64
 import os
 from warnings import warn
-import hashlib
-# import Crypto
-# import simpleubjson as ubj
-# from Crypto.Random import random
-# from Crypto.Hash import SHA256
-# # hasher = SHA256.new()
-from Crypto.Hash import SHA512
-from Crypto.PublicKey import RSA as rsa2
-from Crypto.Cipher import PKCS1_OAEP as oaep
-from Crypto.Signature import pss
 
-# def MGF1_SHA512(*args):
-#     return PKCS1_PSS.MGF1(*args, hash=SHA512)
+# import Crypto
+# from Crypto.Random import random
+from Crypto.Hash import SHA512
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP as OAEP
+from Crypto.Signature import pss as PSS
+from Crypto.Signature.pss import MGF1
 
 # Interpackage dependencies
 from ._spec import _dummy_asym
@@ -74,20 +78,64 @@ DEFAULT_ADDRESSER = 1
 DEFAULT_CIPHER = 1
 
 
+# Some utilities
+class SecurityError(RuntimeError):
+    pass
+
+
+class _FrozenHash():
+    ''' Somewhat-janky utility PyCryptoDome-specific base class for 
+    creating fake hash objects from already-generated hash digests. 
+    Looks like a hash, acts like a hash (where appropriate), but doesn't
+    carry a state, and all mutability functions are disabled.
+    
+    On a scale from 1-to-complete-hack, this is probably 2-3 Baja.
+    '''
+        
+    def __init__(self, data):
+        if len(data) != self.digest_size:
+            raise ValueError('Passed frozen data does not match digest size of hash.')
+            
+        self._data = data
+        
+    def update(self, data):
+        raise TypeError('Frozen hashes cannot be updated.')
+        
+    def copy(self):
+        raise TypeError('Frozen hashes cannot be copied.')
+        
+    def digest(self):
+        return self._data
+    
+
+class _FrozenSHA512(_FrozenHash, SHA512.SHA512Hash):
+    pass
+
+
 class _AddressAlgoBase(metaclass=abc.ABCMeta):
     @classmethod
-    @abc.abstractmethod
     def create(cls, data):
         ''' Creates an address (note: not the whole muid) from data.
         '''
-        pass
+        h = cls._HASH_ALGO.new(data)
+        # Give it the bytes
+        h.update(data)
+        digest = bytes(h.digest())
+        # So this isn't really making much of a difference, necessarily, but
+        # it's good insurance against (accidental or malicious) length
+        # extension problems.
+        del h
+        return digest
         
     @classmethod
-    @abc.abstractmethod
-    def verify(cls, data, hash):
+    def verify(cls, address, data):
         ''' Verifies an address (note: not the whole muid) from data.
         '''
-        pass
+        test = cls.create(data)
+        if test != address:
+            raise SecurityError('Failed to verify address integrity.')
+        else:
+            return True
     
     
 class AddressAlgo0(_AddressAlgoBase):
@@ -96,19 +144,23 @@ class AddressAlgo0(_AddressAlgoBase):
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
     '''
+    _HASH_ALGO = None
+    ADDRESS_LENGTH = len(_dummy_address)
+    
     @classmethod
     def create(cls, data):
         return _dummy_address
         
     @classmethod
-    def verify(cls, data, hash):
+    def verify(cls, address, data):
         return True
     
     
 class AddressAlgo1(_AddressAlgoBase):
     ''' SHA512
     '''
-    pass
+    _HASH_ALGO = SHA512
+    ADDRESS_LENGTH = _HASH_ALGO.digest_size
 
 
 class _CipherSuiteBase(metaclass=abc.ABCMeta):
@@ -274,16 +326,31 @@ class CipherSuite1(_CipherSuiteBase):
     
     Generic, all-static-method class for cipher suite #1.
     '''
+    # Signature constants.
+    # Put these here because 1. explicit and 2. what if PCD API changes?
+    # Explicit is better than implicit!
+    HASH_ALGO = SHA512
+    PSS_MGF = lambda x, y: MGF1(x, y, SHA512)
+    PSS_SALT_LENGTH = SHA512.digest_size
+    # example calls:
+    # h = _FrozenSHA512(data)
+    # pss.new(private_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).sign(h)
+    # or, on the receiving end:
+    # pss.new(private_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).verify(h, signature)
+    # Verification returns nothing (=None) if successful, raises ValueError if not
+    
     @classmethod
     def hasher(cls, data):
         ''' Man, this bytes.'''
-        # Create the hash. This may move to cryptography.io in the future.
-        h = hashlib.sha512()
+        h = cls.HASH_ALGO.new(data)
         # Give it the bytes
         h.update(data)
-
-        # Finalize that shit and return
-        return h.digest()
+        digest = bytes(h.digest())
+        # So this isn't really making much of a difference, necessarily, but
+        # it's good insurance against (accidental or malicious) length
+        # extension problems.
+        del h
+        return digest
         
     @classmethod
     def signer(cls, private_key, data):

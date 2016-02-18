@@ -147,6 +147,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
     
     def __init__(self, version='latest'):   
         # Do this first to initialize state.
+        self._address_algo = None
         self._control = {
             # This gets the value of the literal from the parser
             'magic': self.PARSER['magic'].parser.value,
@@ -335,11 +336,6 @@ class MEOC(_MuseObjectBase):
         plaintext = None
         obj = cls(author, plaintext, version=version)
         
-        # Accommodate SP
-        obj._cache_address_offset = address_offset
-        obj._cache_raw = memoryview(data)
-        
-        # Normal
         # Iterate through and assign all body fields
         for fieldname in unpacked['body']:
             obj._control['body'][fieldname] = unpacked['body'][fieldname]
@@ -349,6 +345,12 @@ class MEOC(_MuseObjectBase):
         obj.muid = unpacked['muid']
         obj.signature = unpacked['signature']
         
+        # Accommodate SP
+        address_data = memoryview(data[:address_offset]).tobytes()
+        
+        # Normal-ish
+        obj._addresser.verify(obj.muid.address, address_data)
+        
         # Don't forget this part.
         return obj
         
@@ -356,13 +358,6 @@ class MEOC(_MuseObjectBase):
         ''' Requires existing knowledge of the public key (does not 
         perform any kind of lookup).
         '''
-        # Accommodate SP
-        address_offset = self._cache_address_offset
-        address_data = bytes(self._cache_raw[:address_offset])
-        
-        # Normal-ish
-        self._addresser.verify(self.muid.address, address_data)
-        # Normal
         self._cipherer.verifier(public_key, self.signature, data=self.muid.address)
         
     def decrypt(self, secret_key):

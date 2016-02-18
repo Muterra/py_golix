@@ -183,6 +183,7 @@ _meoc['cipher'].register_callback('prepack', _gen_dispatch(_meoc, _signature_par
 _meoc['cipher'].register_callback('postunpack', _gen_dispatch(_meoc, _signature_parsers, 'signature'))
 
 _meoc.latest = max(list(_meoc_lookup))
+_meoc.versions = set(_meoc_lookup)
 
 # We need to refactor once smartyparse is rewritten to modify the same
 # object continuously. Currently, smartyparse handles nested smartyparsers
@@ -223,6 +224,7 @@ _mobs['cipher'].register_callback('prepack', _gen_dispatch(_mobs, _signature_par
 _mobs['cipher'].register_callback('postunpack', _gen_dispatch(_mobs, _signature_parsers, 'signature'))
 
 _mobs.latest = max(list(_mobs_lookup))
+_mobs.versions = set(_mobs_lookup)
 
 # ----------------------------------------------------------------------
 # MOBD format blocks
@@ -252,6 +254,7 @@ _mobd['cipher'].register_callback('prepack', _gen_dispatch(_mobd, _signature_par
 _mobd['cipher'].register_callback('postunpack', _gen_dispatch(_mobd, _signature_parsers, 'signature'))
 
 _mobd.latest = max(list(_mobd_lookup))
+_mobd.versions = set(_mobd_lookup)
 
 # ----------------------------------------------------------------------
 # MDXX format blocks
@@ -277,6 +280,7 @@ _mdxx['cipher'].register_callback('prepack', _gen_dispatch(_mdxx, _signature_par
 _mdxx['cipher'].register_callback('postunpack', _gen_dispatch(_mdxx, _signature_parsers, 'signature'))
 
 _mdxx.latest = max(list(_mdxx_lookup))
+_mdxx.versions = set(_mdxx_lookup)
 
 # ----------------------------------------------------------------------
 # MEAR format blocks
@@ -309,6 +313,7 @@ _mear['cipher'].register_callback('prepack', _mear_cipher_update)
 _mear['cipher'].register_callback('postunpack', _mear_cipher_update)
 
 _mear.latest = max(list(_mear_lookup))
+_mear.versions = set(_mear_lookup)
 
 # ----------------------------------------------------------------------
 # Asymmetric payload format blocks

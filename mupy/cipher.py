@@ -151,6 +151,26 @@ class _FrozenHash():
 
 class _FrozenSHA512(_FrozenHash, SHA512.SHA512Hash):
     pass
+    
+    
+class _SecretBase(metaclass=abc.ABCMeta):
+    ''' Base class for Secrets object, since secrets use
+    (potentially) both a nonce and a key. That class should also
+    have a bytes representation.
+    '''
+    @abc.abstractmethod
+    def __bytes__(self):
+        pass
+       
+    @property
+    @abc.abstractmethod
+    def key(self):
+        pass
+        
+    @property
+    @abc.abstractmethod
+    def nonce(self):
+        pass
 
 
 class _CipherSuiteBase(metaclass=abc.ABCMeta):
@@ -239,12 +259,10 @@ class _CipherSuiteBase(metaclass=abc.ABCMeta):
     
     
 class _IdentityBase():
-    DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
-    
-    def __init__(self, address_algo):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.ciphersuite = None
         self.author_muid = None
-        self.address_algo = self._dispatch_address(address_algo)
         
     @classmethod
     def _dispatch_address(cls, address_algo):
@@ -257,11 +275,13 @@ class _IdentityBase():
         return address_algo
         
         
-class _FirstPersonBase(metaclass=abc.ABCMeta): 
-    @abc.abstractmethod
-    def generate_third_person(self):
-        pass
-        
+class _FirstPersonBase(metaclass=abc.ABCMeta):
+    DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
+    
+    def __init__(self, address_algo, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.address_algo = self._dispatch_address(address_algo)
+         
     def make_meoc(self, plaintext):
         meoc = MEOC(author=self.author_muid)
         secret = self._new_secret()
@@ -269,13 +289,99 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         meoc.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(meoc.muid.address)
         meoc.pack_signature(signature)
-        return meoc.packed
-        # Need to also return muid
-        # Need to also return secret
+        # This will need to be converted into a namedtuple or something
+        return secret, meoc.muid, meoc.packed
+        
+    @abc.abstractmethod
+    def generate_third_person(self):
+        pass
+        
+    # def build(self, obj):
+    #     obj.build()
+    #     signature = self.sign
+        
+    # def sign(self, obj):
+    #     obj.pack_signature(_dummy_signature)
+    #     return obj.packed
+    
+    @abc.abstractmethod
+    def _new_secret(self):
+        ''' Placeholder method to create new symmetric secret.
+        Note that this needs its own Secret class.
+        '''
+        pass
+        
+    @abc.abstractmethod
+    def _sign(self, data):
+        ''' Placeholder signing method.
+        '''
+        pass
+        
+    @abc.abstractmethod
+    def _decrypt_asym(self, data):
+        ''' Placeholder asymmetric decryptor.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _decrypt(self, secret, data):
+        ''' Placeholder symmetric decryptor.
+        
+        Handle multiple ciphersuites by having a thirdpartyidentity for
+        whichever author created it, and calling their decrypt instead.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _encrypt(self, data):
+        ''' Placeholder symmetric encryptor.
+        '''
+        pass
     
     
 class _ThirdPersonBase(metaclass=abc.ABCMeta):
-    pass
+    def load_meoc(self, secret, meoc):
+        # Handle loading a raw meoc, if that's what's passed
+        try:
+            memoryview(meoc)
+            meoc = MEOC.unpack(meoc)
+        except TypeError:
+            pass
+        
+        signature = meoc.signature
+        self._verify(signature, meoc.muid.address)
+        plaintext = self._decrypt(secret, meoc.payload)
+        # This will need to be converted into a namedtuple or something
+        return meoc.muid, plaintext
+        
+    @abc.abstractmethod
+    def _verify(self, signature, data):
+        ''' Verifies an author's signature against bites. Errors out if 
+        unsuccessful. Returns True if successful.
+        '''
+        pass
+        
+    @abc.abstractmethod
+    def _encrypt_asym(self, data):
+        ''' Placeholder asymmetric encryptor.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _decrypt(self, secret, data):
+        ''' Placeholder symmetric decryptor.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _encrypt(self, data):
+        ''' Placeholder symmetric encryptor.
+        '''
+        pass
         
         
 class CipherSuite0(_CipherSuiteBase):
@@ -366,7 +472,7 @@ class FirstPersonIdentity0(_IdentityBase, _FirstPersonBase):
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
     '''
-    def __init__(self, address_algo, *args, **kwargs):
+    def __init__(self, author_muid, address_algo, *args, **kwargs):
         super().__init__(address_algo)
         self.ciphersuite = 0
         self.author_muid = _dummy_muid
@@ -445,8 +551,8 @@ class FirstPersonIdentity0(_IdentityBase, _FirstPersonBase):
     
         
 class ThirdPersonIdentity0(_IdentityBase, _ThirdPersonBase):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
+    def __init__(self, author_muid, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.ciphersuite = 0
         self.author_muid = _dummy_muid
         
@@ -475,6 +581,12 @@ class ThirdPersonIdentity0(_IdentityBase, _ThirdPersonBase):
         formatted with all necessary components for a public key.
         '''
         return _dummy_asym
+        
+    # Well it's not exactly repeating yourself, though it does mean there
+    # are sorta two ways to perform decryption. Best practice = always decrypt
+    # using the author's ThirdPersonIdentity
+    _encrypt = FirstPersonIdentity0._encrypt
+    _decrypt = FirstPersonIdentity0._decrypt
 
 
 class CipherSuite1(_CipherSuiteBase):

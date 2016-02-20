@@ -36,6 +36,11 @@ mupy: A python library for Muse object manipulation.
 import abc
 from Crypto.Hash import SHA512
 
+
+# ----------------------------------------------------------------------
+# Misc objects
+
+
 class SecurityError(RuntimeError):
     pass
 
@@ -44,7 +49,7 @@ class Muid():
     ''' Extremely lightweight class for MUIDs. Implements __hash__ to 
     allow it to be used as a dictionary key.
     '''
-    __slots__ = ['algo', 'address']
+    __slots__ = ['algo', '_address']
     
     def __init__(self, algo, address):
         self.algo = algo
@@ -67,6 +72,20 @@ class Muid():
             raise TypeError(
                 'Cannot compare Muid objects to non-Muid-like objects.'
             ) from e
+            
+    @property
+    def address(self):
+        if self.algo == 0:
+            return _dummy_address
+        else:
+            return self._address
+            
+    @address.setter
+    def address(self, address):
+        if self.algo == 0:
+            pass
+        else:
+            self._address = address
 
 # ----------------------------------------------------------------------
 # Mock objects for zeroth hash/ciphersuites

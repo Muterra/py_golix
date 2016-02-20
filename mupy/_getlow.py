@@ -297,7 +297,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         # Accommodate SP
         offset_cache = []
         offset_cacher = _generate_offset_cacher(offset_cache, cls.PARSER['muid'])
-        cls.PARSER['muid'].register_callback('postunpack', offset_cacher)
+        cls.PARSER['muid'].register_callback('preunpack', offset_cacher)
         
         # Normal
         unpacked = cls.PARSER.unpack(data)

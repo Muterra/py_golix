@@ -35,3 +35,6 @@ from .core import *
 
 # Submodules
 from . import _getlow
+from . import _spec
+from . import cipher
+from . import utils

@@ -226,7 +226,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         
     @property
     def address_algo(self):
-        if self.muid != None:
+        if self.muid is not None:
             return self.muid.algo
         elif self._address_algo != None:
             return self._address_algo

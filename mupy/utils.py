@@ -41,7 +41,8 @@ class SecurityError(RuntimeError):
 
 
 class Muid():
-    ''' Extremely lightweight class for MUIDs.
+    ''' Extremely lightweight class for MUIDs. Implements __hash__ to 
+    allow it to be used as a dictionary key.
     '''
     __slots__ = ['algo', 'address']
     
@@ -54,6 +55,18 @@ class Muid():
         
     def __setitem__(self, item, value):
         setattr(self, item, value)
+        
+    def __hash__(self):
+        condensed = int.to_bytes(self.algo, length=1, byteorder='big') + self.address
+        return hash(condensed)
+        
+    def __eq__(self, other):
+        try:
+            return (self.algo == other.algo and self.address == other.address)
+        except AttributeError as e:
+            raise TypeError(
+                'Cannot compare Muid objects to non-Muid-like objects.'
+            ) from e
 
 # ----------------------------------------------------------------------
 # Mock objects for zeroth hash/ciphersuites

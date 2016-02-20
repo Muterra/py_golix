@@ -33,9 +33,6 @@ mupy: A python library for Muse object manipulation.
 
 '''
 
-# Housekeeping
-DEFAULT_CIPHER = 1
-
 # Control * imports
 __all__ = ['MEOC', 'MOBS', 'MOBD', 'MDXX', 'MEAR']
 
@@ -62,14 +59,11 @@ from ._spec import _asym_else
 
 # Accommodate SP
 from ._spec import cipher_length_lookup
+from .utils import hash_lookup
 
-from .cipher import cipher_lookup
-from .cipher import hash_lookup
-from .cipher import DEFAULT_ADDRESSER
-from .cipher import DEFAULT_CIPHER
-from .cipher import SecurityError
-
+# Normal
 from .utils import Muid
+from .utils import SecurityError
 
         
 # ###############################################
@@ -145,23 +139,51 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
     parse handling? Or should that be @staticmethod?
     '''
     
-    def __init__(self, version='latest'):   
+    def __init__(self, version='latest', _control=None):   
         # Do this first to initialize state.
         self._address_algo = None
-        self._control = {
-            # This gets the value of the literal from the parser
-            'magic': self.PARSER['magic'].parser.value,
-            'version': None,
-            'cipher': None,
-            'body': {},
-            'muid': None,
-            'signature': None
-        }
-             
-        # Handle the version infos, adjusting if version is latest
+        self._signed = False
+        self._packed = None
+        
+        # If we're creating an object from an unpacked one, just load directly
+        if _control:
+            self._control = _control
+            
+        # Creating from scratch. Now we have some actual work to do.
+        else:
+            # We need to do some checking here.
+            # Handle the version infos, adjusting if version is latest
+            version = self._handle_version(version)
+            
+            # All checks passed, go ahead and load the 
+            self._control = {
+                # This gets the value of the literal from the parser
+                'magic': self.PARSER['magic'].parser.value,
+                'version': version,
+                'cipher': None,
+                'body': {},
+                'muid': None,
+                'signature': None
+            }
+            
+    def _handle_version(self, version):
         if version == 'latest':
             version = self.PARSER.latest
-        self._control['version'] = version
+        if version not in self.PARSER.versions:
+            raise ValueError('Object version unavailable: ' + str(version))
+        return version
+        
+    @property
+    def packed(self):
+        ''' Returns the packed object if and only if it has been packed
+        and signed.
+        '''
+        if self._signed:
+            return self._packed
+        else:
+            raise RuntimeError(
+                'Packed object unavailable until packed and signed.'
+            )
         
     @property
     def signature(self):
@@ -189,75 +211,18 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         
     @property
     def cipher(self):
-        return self._control['cipher']
+        if self._control['cipher'] != None:
+            return self._control['cipher']
+        else:
+            raise RuntimeError('Cipher has not yet been defined.')
         
     @cipher.setter
     def cipher(self, value):
         self._control['cipher'] = value
         
     @property
-    def _cipherer(self):
-        return cipher_lookup(self.cipher)
-        
-    @property
     def _addresser(self):
         return hash_lookup(self.address_algo)
-        
-    def _pack(self):
-        ''' Performs raw packing using the smartyparser in self.PARSER.
-        '''
-        # Accommodate SP
-        _offset_cache = []
-        offset_cacher = _generate_offset_cacher(_offset_cache, self.PARSER['muid'])
-        self.PARSER['muid'].register_callback('postpack', offset_cacher)
-        
-        return self.PARSER.pack(self._control), _offset_cache
-        
-        # # Normal
-        # return self.PARSER.pack(self._control)
-        
-    @classmethod
-    @abc.abstractmethod
-    def unpack(cls, data):
-        ''' Performs raw unpacking with the smartyparser in self.PARSER.
-        '''
-        # Accommodate SP
-        _offset_cache = []
-        offset_cacher = _generate_offset_cacher(_offset_cache, cls.PARSER['muid'])
-        cls.PARSER['muid'].register_callback('postunpack', offset_cacher)
-        return cls.PARSER.unpack(data), _offset_cache
-        
-        # # Normal
-        # return cls.PARSER.unpack(data)
-        
-    @abc.abstractmethod
-    def verify(self, *args, **kwargs):
-        ''' Verifies the public parts of the object.
-        '''
-        pass
-        
-    @abc.abstractmethod
-    def finalize(self, cipher='default', address_algo='default', *args, **kwargs):
-        ''' Encrypts, signs, etc. One-stop shop for object completion.
-        Returns bytes.
-        '''
-        # Adjustment for defaults.
-        if cipher == 'default':
-            cipher = DEFAULT_CIPHER
-        if address_algo == 'default':
-            address_algo = DEFAULT_ADDRESSER
-        
-        self.cipher = cipher
-        self._address_algo = address_algo
-        
-    @classmethod
-    @abc.abstractmethod
-    def load(cls, data, *args, **kwargs):
-        ''' Decrypts, verifies, etc. One-stop shop for object loading.
-        Returns a generated object (MEOC, MOBS, etc) instance. Requires
-        pre-existing knowledge of the author's identity.
-        '''
-        pass
         
     @property
     def address_algo(self):
@@ -267,6 +232,87 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
             return self._address_algo
         else:
             raise RuntimeError('Address algorithm not yet defined.')
+        
+    def pack(self, address_algo, cipher):
+        ''' Performs raw packing using the smartyparser in self.PARSER.
+        Generates a MUID as well.
+        '''
+        # Normal
+        self.cipher = cipher
+        self._address_algo = address_algo
+        
+        # Accommodate SP
+        offset_cache = []
+        offset_cacher = _generate_offset_cacher(offset_cache, self.PARSER['muid'])
+        self.PARSER['muid'].register_callback('postpack', offset_cacher)
+        
+        muid_padding = bytes(self._addresser.ADDRESS_LENGTH)
+        self.muid = Muid(self.address_algo, muid_padding)
+        
+        # Note that it isn't actually necessary to correctly lengthen
+        # packed, because the signature is always last, so we can always
+        # simply extend it past the end.
+        sig_padding = bytes(cipher_length_lookup[self.cipher]['sig'])
+        # sig_padding = b''
+        self.signature = sig_padding
+        
+        # Normal
+        packed = self.PARSER.pack(self._control)
+        
+        # Normal-ish, courtesy of above
+        self.signature = None
+        
+        # Accommodate SP
+        address_offset = offset_cache.pop()
+        sig_offset = address_offset + self._addresser.ADDRESS_LENGTH
+        self._sig_offset = sig_offset
+        # Hash the packed data, until the appropriate point, and then sign
+        # Conversion to bytes necessary for PyCryptoDome API
+        address = self._addresser.create(bytes(packed[:address_offset]))
+        
+        # Rewrite packed with the hash and signature
+        packed[address_offset:sig_offset] = address
+        self._packed = packed
+        
+        # Normal
+        # Useful for anything referencing this post-build
+        self.muid = Muid(self.address_algo, address)
+        
+        # # Normal
+        # return self.PARSER.pack(self._control)
+        
+    def pack_signature(self, signature):
+        if not self._packed:
+            raise RuntimeError(
+                'Signature cannot be packed without first calling pack().'
+            )
+        self.signature = signature
+        self._packed[self._sig_offset:] = signature
+        self._signed = True
+        
+    @classmethod
+    def unpack(cls, data):
+        ''' Performs raw unpacking with the smartyparser in self.PARSER.
+        '''
+        # Accommodate SP
+        offset_cache = []
+        offset_cacher = _generate_offset_cacher(offset_cache, cls.PARSER['muid'])
+        cls.PARSER['muid'].register_callback('postunpack', offset_cacher)
+        
+        # Normal
+        unpacked = cls.PARSER.unpack(data)
+        self = cls(_control=unpacked)
+        self._packed = memoryview(data)
+        
+        # Accommodate SP
+        address_offset = offset_cache.pop()
+        address_data = self._packed[:address_offset].tobytes()
+        
+        # Normal-ish
+        self._addresser.verify(self.muid.address, address_data)
+        
+        # Don't forget this part.
+        return self
        
 
 class MEOC(_MuseObjectBase):
@@ -278,15 +324,17 @@ class MEOC(_MuseObjectBase):
     '''
     PARSER = _meoc
     
-    def __init__(self, author, plaintext, *args, **kwargs):
+    def __init__(self, author=None, payload=None, _control=None, *args, **kwargs):
         ''' Generates MEOC object.
         
         Author should be a utils.Muid object (or similar).
         '''
-        super().__init__(*args, **kwargs)
+        super().__init__(_control=_control, *args, **kwargs)
         
-        self.author = author
-        self.plaintext = plaintext
+        # Don't overwrite anything we loaded from _control!
+        if not _control:
+            self.payload = payload
+            self.author = author
         
     @property
     def payload(self):
@@ -317,102 +365,6 @@ class MEOC(_MuseObjectBase):
         # DON'T implement a deleter, because without a payload, this is
         # meaningless. Use None for temporary payloads.
         self._control['body']['author'] = value
-        
-    @classmethod
-    def unpack(cls, data):
-        ''' Performs raw unpacking with the smartyparser in self.PARSER.
-        '''
-        # # Normal
-        # unpacked = super().unpack(data)
-        
-        # Accommodate SP
-        unpacked, offset_cache = super().unpack(data)
-        address_offset = offset_cache.pop()
-        
-        # Normal
-        # Extract args for cls()
-        author = unpacked['body']['author']
-        version = unpacked['version']
-        plaintext = None
-        obj = cls(author, plaintext, version=version)
-        
-        # Iterate through and assign all body fields
-        for fieldname in unpacked['body']:
-            obj._control['body'][fieldname] = unpacked['body'][fieldname]
-        
-        # The below also cannot be folded into super(), because cls() needs args
-        obj.cipher = unpacked['cipher']
-        obj.muid = unpacked['muid']
-        obj.signature = unpacked['signature']
-        
-        # Accommodate SP
-        address_data = memoryview(data[:address_offset]).tobytes()
-        
-        # Normal-ish
-        obj._addresser.verify(obj.muid.address, address_data)
-        
-        # Don't forget this part.
-        return obj
-        
-    def verify(self, public_key, *args, **kwargs):
-        ''' Requires existing knowledge of the public key (does not 
-        perform any kind of lookup).
-        '''
-        self._cipherer.verifier(public_key, self.signature, data=self.muid.address)
-        
-    def decrypt(self, secret_key):
-        self.plaintext = self._cipherer.symmetric_decryptor(secret_key, self.payload)
-        del secret_key
-        
-    @classmethod
-    def load(cls, public_key, secret_key, data):
-        ''' Decrypts, verifies, etc. One-stop shop for object loading.
-        Returns a generated object (MEOC, MOBS, etc) instance.
-        '''
-        obj = cls.unpack(data)
-        obj.verify(public_key)
-        obj.decrypt(secret_key)
-        del secret_key
-        return obj
-        
-    def finalize(self, private_key, secret_key, *args, **kwargs):
-        ''' Encrypts, signs, etc. One-stop shop for object completion.
-        Returns bytes.
-        '''
-        # Call this to handle defaults for cipher='default' and address_algo='default'
-        super().finalize(*args, **kwargs)
-        
-        self.payload = self._cipherer.symmetric_encryptor(secret_key, self.plaintext)
-        del secret_key
-        
-        # Accommodate SP
-        muid_padding = bytes(self._addresser.ADDRESS_LENGTH)
-        self.muid = Muid(self.address_algo, muid_padding)
-        sig_padding = bytes(cipher_length_lookup[self.cipher]['sig'])
-        self.signature = sig_padding
-        
-        # # Normal
-        # del private_key
-        # packed = self._pack()
-        
-        # Accommodate SP
-        packed, _offset_cache = self._pack()
-        address_offset = _offset_cache.pop()
-        sig_offset = address_offset + self._addresser.ADDRESS_LENGTH
-        # Hash the packed data, until the appropriate point, and then sign
-        # Conversion to bytes necessary for PyCryptoDome API
-        address = self._addresser.create(bytes(packed[:address_offset]))
-        signature = self._cipherer.signer(private_key, address)
-        del private_key
-        # Rewrite packed with the hash and signature
-        packed[address_offset:sig_offset] = address
-        packed[sig_offset:] = signature
-        # Useful for anything referencing this post-build
-        self.muid = Muid(self.address_algo, address)
-        self.signature = signature
-        
-        # Normal
-        return packed
         
 
 class MOBS(_MuseObjectBase):

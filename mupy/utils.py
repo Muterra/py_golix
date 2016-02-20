@@ -1,5 +1,6 @@
 '''
-Cross-library utilities excluded from core.py to avoid circular imports.
+Cross-library utilities excluded from core.py or cipher.py to avoid 
+circular imports.
 
 LICENSING
 -------------------------------------------------
@@ -32,6 +33,12 @@ mupy: A python library for Muse object manipulation.
 ------------------------------------------------------
 
 '''
+import abc
+from Crypto.Hash import SHA512
+
+class SecurityError(RuntimeError):
+    pass
+
 
 class Muid():
     ''' Extremely lightweight class for MUIDs.
@@ -47,3 +54,78 @@ class Muid():
         
     def __setitem__(self, item, value):
         setattr(self, item, value)
+
+# ----------------------------------------------------------------------
+# Mock objects for zeroth hash/ciphersuites
+
+_dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
+_dummy_muid = Muid(0, _dummy_address)
+_dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
+_dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
+_dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
+
+# ----------------------------------------------------------------------
+# Address algorithms
+
+class _AddressAlgoBase(metaclass=abc.ABCMeta):
+    @classmethod
+    def create(cls, data):
+        ''' Creates an address (note: not the whole muid) from data.
+        '''
+        h = cls._HASH_ALGO.new(data)
+        # Give it the bytes
+        h.update(data)
+        digest = bytes(h.digest())
+        # So this isn't really making much of a difference, necessarily, but
+        # it's good insurance against (accidental or malicious) length
+        # extension problems.
+        del h
+        return digest
+        
+    @classmethod
+    def verify(cls, address, data):
+        ''' Verifies an address (note: not the whole muid) from data.
+        '''
+        test = cls.create(data)
+        if test != address:
+            raise SecurityError('Failed to verify address integrity.')
+        else:
+            return True
+    
+    
+class AddressAlgo0(_AddressAlgoBase):
+    ''' FOR TESTING PURPOSES ONLY. 
+    
+    Entirely inoperative. Correct API, but ignores all input, creating
+    only a symbolic output.
+    '''
+    _HASH_ALGO = None
+    ADDRESS_LENGTH = len(_dummy_address)
+    
+    @classmethod
+    def create(cls, data):
+        return _dummy_address
+        
+    @classmethod
+    def verify(cls, address, data):
+        return True
+    
+    
+class AddressAlgo1(_AddressAlgoBase):
+    ''' SHA512
+    '''
+    _HASH_ALGO = SHA512
+    ADDRESS_LENGTH = _HASH_ALGO.digest_size
+
+# Zero should be rendered inop, IE ignore all input data and generate
+# symbolic representations
+ADDRESS_ALGOS = {
+    0: AddressAlgo0,
+    1: AddressAlgo1
+}
+    
+def hash_lookup(num):
+    try:
+        return ADDRESS_ALGOS[num]
+    except KeyError as e:
+        raise ValueError('Address algo "' + str(num) + '" is undefined.') from e

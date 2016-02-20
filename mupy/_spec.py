@@ -41,11 +41,14 @@ from smartyparse import parsers
 from smartyparse import references
 
 from .utils import Muid
+from .utils import _dummy_asym
+from .utils import _dummy_mac
+from .utils import _dummy_signature
+from .utils import _dummy_address
+from .utils import _dummy_muid
 
 # ----------------------------------------------------------------------
 # Hash algo identifier / length block
-
-_dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
 
 _hash_algo_lookup = {
     0: ParseHelper(parsers.Literal(_dummy_address, verify=False)),
@@ -133,21 +136,15 @@ cipher_length_lookup = {
     }
 }
 
-_dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
-
 _signature_parsers = {}
 _signature_parsers[0] = ParseHelper(parsers.Literal(_dummy_signature, verify=False))
 _signature_parsers[1] = ParseHelper(parsers.Blob(length=512))
 _signature_parsers[2] = ParseHelper(parsers.Blob(length=512))
 
-_dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
-
 _mac_parsers = {}
 _mac_parsers[0] = ParseHelper(parsers.Literal(_dummy_mac, verify=False))
 _mac_parsers[1] = ParseHelper(parsers.Blob(length=64))
 _mac_parsers[2] = ParseHelper(parsers.Blob(length=64))
-
-_dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
 
 _asym_parsers = {}
 _asym_parsers[0] = ParseHelper(parsers.Literal(_dummy_asym, verify=False))

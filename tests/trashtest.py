@@ -42,6 +42,8 @@ from mupy import Muid
 # These are abnormal (don't use in production) inclusions.
 from mupy.cipher import FirstPersonIdentity0
 from mupy.cipher import ThirdPersonIdentity0
+from mupy.cipher import FirstPersonIdentity1
+from mupy.cipher import ThirdPersonIdentity1
 
 from mupy._getlow import MOBS
 
@@ -69,18 +71,23 @@ if __name__ == '__main__':
     known_third_parties = {}
     
     # Dummy first-person identity tests with dummy, real addresser.
-    fake_first_id_1 = FirstPersonIdentity0(author_muid= None, address_algo=0)
-    fake_first_id_2 = FirstPersonIdentity0(author_muid= None, address_algo=1)
+    fake_first_id_1 = FirstPersonIdentity0(author_muid=None, address_algo=0)
+    fake_first_id_2 = FirstPersonIdentity0(author_muid=None, address_algo=1)
     
     # Dummy first-person identity tests with dummy, real addresser.
     fake_third_id = ThirdPersonIdentity0(author_muid=_dummy_muid)
     known_third_parties[fake_third_id.author_muid] = fake_third_id
     
+    # Try it for rls
+    first_id_1 = FirstPersonIdentity1(address_algo=1)
+    third_id_1 = first_id_1.generate_third_person()
+    
     # Test them on MEOCs:
-    _dummy_payload = b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
+    _dummy_payload = b'[[ Hello, world? ]]'
     
     secret1, muid1, meoc_1p = fake_first_id_1.make_meoc(_dummy_payload)
     secret2, muid2, meoc_2p = fake_first_id_2.make_meoc(_dummy_payload)
+    secret3, muid3, meoc_3p = first_id_1.make_meoc(_dummy_payload)
     
     # Normal unpacking operation for first
     meoc_1r = MEOC.unpack(meoc_1p)
@@ -89,12 +96,13 @@ if __name__ == '__main__':
     
     # Normal unpacking operation for second
     meoc_2r = MEOC.unpack(meoc_2p)
-    # Note that the author lookup ideally shouldn't be necessary if you already 
-    # know who it is. However, that will require rewriting load_meoc to handle
-    # both a packed
     author_2 = known_third_parties[meoc_2r.author]
     muid_2, meoc_2r_plaintext = author_2.load_meoc(secret2, meoc_2p)
     
+    # Extra-normal unpacking operation for third.
+    # Note that the author lookup ideally shouldn't be necessary if you already 
+    # know who it is.
+    muid_3, meoc_3r_plaintext = third_id_1.load_meoc(secret3, meoc_3p)
     
     import IPython
     IPython.embed()

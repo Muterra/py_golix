@@ -104,6 +104,9 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP as OAEP
 from Crypto.Signature import pss as PSS
 from Crypto.Signature.pss import MGF1
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Counter
 
 # Interpackage dependencies
 from .utils import Muid
@@ -153,24 +156,37 @@ class _FrozenSHA512(_FrozenHash, SHA512.SHA512Hash):
     pass
     
     
-class _SecretBase(metaclass=abc.ABCMeta):
-    ''' Base class for Secrets object, since secrets use
-    (potentially) both a nonce and a key. That class should also
-    have a bytes representation.
+class Secret():
+    ''' All secrets have a key. Some have a nonce or IV (seed). All must 
+    be able to be condensed into __bytes__. All must also be retrievable 
+    from a bytes object.
     '''
-    @abc.abstractmethod
+    # We expect to have a lot of secrets, so let's add slots. Also, there's
+    # a case to be made for discouraging people from using Secrets for
+    # anything other than, well, secrets.
+    __slots__ = ['_key', '_seed']
+    
+    def __init__(self, key, seed=None):
+        if seed is None:
+            seed = b''
+            
+        self._key = key
+        self._seed = seed
+    
     def __bytes__(self):
-        pass
+        raise NotImplementedError('Bytes representation not yet supported.')
        
     @property
-    @abc.abstractmethod
     def key(self):
-        pass
+        return self._key
         
     @property
-    @abc.abstractmethod
-    def nonce(self):
-        pass
+    def seed(self):
+        return self._seed
+        
+    @classmethod
+    def from_bytes(cls, data):
+        raise NotImplementedError('Cannot yet load secrets from bytes.')
 
 
 class _CipherSuiteBase(metaclass=abc.ABCMeta):
@@ -306,8 +322,8 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     
     @abc.abstractmethod
     def _new_secret(self):
-        ''' Placeholder method to create new symmetric secret.
-        Note that this needs its own Secret class.
+        ''' Placeholder method to create new symmetric secret. Returns
+        a Secret().
         '''
         pass
         
@@ -472,7 +488,7 @@ class FirstPersonIdentity0(_IdentityBase, _FirstPersonBase):
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
     '''
-    def __init__(self, author_muid, address_algo, *args, **kwargs):
+    def __init__(self, keys=None, author_muid=None, address_algo='default', *args, **kwargs):
         super().__init__(address_algo)
         self.ciphersuite = 0
         self.author_muid = _dummy_muid
@@ -502,7 +518,7 @@ class FirstPersonIdentity0(_IdentityBase, _FirstPersonBase):
     def _new_secret(cls):
         ''' Placeholder method to create new symmetric secret.
         '''
-        return None
+        return Secret(key=b'', seed=None)
         
     @classmethod
     def _sign(cls, *args, **kwargs):
@@ -778,12 +794,13 @@ class CipherSuite1(_CipherSuiteBase):
 class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
     ''' ... Hmmm
     '''
-    def __init__(self, keys=None, author_muid=None):
-        super().__init__()
-        self.supported_ciphers.add(1)
+    def __init__(self, keys=None, author_muid=None, address_algo='default', *args, **kwargs):
+        super().__init__(address_algo)
+        self.ciphersuite = 1
+        self.address_algo = self._dispatch_address(address_algo)
         self.author_muid = author_muid
         
-        if keys:
+        if keys and author_muid:
             try:
                 self._signature_key = keys['signature']
                 self._encryption_key = keys['encryption']
@@ -793,67 +810,117 @@ class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
                     'Generating ID from existing keys requires dict-like obj '
                     'with "signature", "encryption", and "exchange" keys.'
                 ) from e
+        elif keys or author_muid:
+            raise TypeError(
+                'Generating an ID manually from existing keys requires '
+                'both keys and author_muid.'
+            )
         else:
             self._signature_key = RSA.generate(4096)
             self._encryption_key = RSA.generate(4096)
             self._exchange_key = None
-    
-    @property
-    def signature_key(self):
-        return self._sign
+            # Use this temporarily until we're creating our own author file
+            self.author_muid = _dummy_muid
         
-    @property
-    def decryption_key(self):
-        return self._decrypt
-        
-    @property
-    def exchange_key(self):
-        return self._exchange
-        
-    @property
-    def public(self):
+    def generate_third_person(self):
         return ThirdPersonIdentity1(
-            self.signature_key.publickey(),
-            self.decryption_key.publickey(),
-            self.exchange_key.publickey()
+            author_muid=self.author_muid,
+            verification_key=self._signature_key.publickey(),
+            encryption_key=self._encryption_key.publickey(),
+            # exchange_key=self._exchange_key.publickey()
+            exchange_key=None
         )
-        
-    def sign(self, obj):
-        address = obj.muid.address
-        signature = self._signer(address)
-        obj.pack_signature(signature)
-        return obj.packed
     
+    @classmethod
+    def _new_secret(cls):
+        ''' Returns a new secure Secret().
+        '''
+        key = get_random_bytes(32)
+        nonce = get_random_bytes(16)
+        return Secret(key=key, seed=nonce)
+        
+    def _sign(self, data):
+        ''' Placeholder signing method.
+        '''
+        return _dummy_signature
+        
+    def _decrypt_asym(self, data):
+        ''' Placeholder asymmetric decryptor.
+        '''
+        pass
+        
+    @classmethod
+    def _decrypt(self, secret, data):
+        ''' Placeholder symmetric decryptor.
+        
+        Handle multiple ciphersuites by having a thirdpartyidentity for
+        whichever author created it, and calling their decrypt instead.
+        '''
+        # Courtesy of pycryptodome's API limitations:
+        if not isinstance(data, bytes):
+            data = bytes(data)
+        # Convert the secret's seed (nonce) into an integer for pycryptodome
+        ctr_start = int.from_bytes(secret.seed, byteorder='big')
+        ctr = Counter.new(nbits=128, initial_value=ctr_start)
+        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
+        return cipher.decrypt(data)
+        
+    @classmethod
+    def _encrypt(self, secret, data):
+        ''' Symmetric encryptor.
+        '''
+        # Courtesy of pycryptodome's API limitations:
+        if not isinstance(data, bytes):
+            data = bytes(data)
+        # Convert the secret's seed (nonce) into an integer for pycryptodome
+        ctr_start = int.from_bytes(secret.seed, byteorder='big')
+        ctr = Counter.new(nbits=128, initial_value=ctr_start)
+        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
+        return cipher.encrypt(data)
+        
 
-class ThirdPersonIdentity1(_ThirdPersonBase):
-    @abc.abstractmethod
-    def __init__(self, verification_key, encryption_key, exchange_key):
-        super().__init__()
-        self.supported_ciphers.add(1)
+class ThirdPersonIdentity1(_ThirdPersonBase):        
+    def __init__(self, 
+                author_muid, 
+                verification_key, 
+                encryption_key, 
+                exchange_key, 
+                *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ciphersuite = 1
+        self.author_muid = _dummy_muid
         
-        self._verify = verification_key
-        self._encrypt = encryption_key
-        self._exchange = exchange_key
-    
-    @property
-    def verification_key(self):
-        return self._verify
+    # @classmethod
+    # def _hash(cls, *args, **kwargs):
+    #     ''' The hasher used for information addressing.
+    #     '''
+    #     return None
         
-    @property
-    def encryption_key(self):
-        return self._encrypt
+    @classmethod
+    def _verify(cls, *args, **kwargs):
+        ''' Verifies an author's signature against bites. Errors out if 
+        unsuccessful. Returns True if successful.
         
-    @property
-    def exchange_key(self):
-        return self._exchange
+        Data must be bytes-like. public_key should be a dictionary 
+        formatted with all necessary components for a public key (?).
+        Signature must be bytes-like.
+        '''
+        return True
         
+    @classmethod
+    def _encrypt_asym(cls, *args, **kwargs):
+        ''' Placeholder asymmetric encryptor.
         
-class CipherSuite2(_CipherSuiteBase):
-    ''' SHA512, AES256-CTR, RSA-4096, ECDH-C25519
-    
-    Generic, all-static-method class for cipher suite #1.
-    '''
-    pass
+        Data should be bytes-like. Public key should be a dictionary 
+        formatted with all necessary components for a public key.
+        '''
+        return _dummy_asym
+        
+    # Well it's not exactly repeating yourself, though it does mean there
+    # are sorta two ways to perform decryption. Best practice = always decrypt
+    # using the author's ThirdPersonIdentity
+    _encrypt = FirstPersonIdentity1._encrypt
+    _decrypt = FirstPersonIdentity1._decrypt
     
   
 # Zero should be rendered inop, IE ignore all input data and generate
@@ -861,7 +928,6 @@ class CipherSuite2(_CipherSuiteBase):
 CIPHER_SUITES = {
     0: CipherSuite0,
     1: CipherSuite1,
-    2: CipherSuite2
 }
 
 def cipher_lookup(num):

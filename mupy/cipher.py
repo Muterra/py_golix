@@ -791,6 +791,19 @@ class CipherSuite1(_CipherSuiteBase):
         return payload
 
 
+# Signature constants.
+# Put these here because 1. explicit and 2. what if PCD API changes?
+# Explicit is better than implicit!
+# Don't include these in the class 1. to avoid cluttering it and 2. to avoid
+# accidentally passing self
+_PSS_SALT_LENGTH = SHA512.digest_size
+_PSS_MGF = lambda x, y: MGF1(x, y, SHA512)
+# example calls:
+# h = _FrozenSHA512(data)
+# PSS.new(private_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).sign(h)
+# or, on the receiving end:
+# PSS.new(public_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).verify(h, signature)
+# Verification returns nothing (=None) if successful, raises ValueError if not
 class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
     ''' ... Hmmm
     '''
@@ -823,13 +836,13 @@ class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
             self.author_muid = _dummy_muid
         
     def generate_third_person(self):
-        return ThirdPersonIdentity1(
-            author_muid=self.author_muid,
-            verification_key=self._signature_key.publickey(),
-            encryption_key=self._encryption_key.publickey(),
-            # exchange_key=self._exchange_key.publickey()
-            exchange_key=None
-        )
+        keys = {
+            'signature': self._signature_key.publickey(),
+            'encryption': self._encryption_key.publickey(),
+            # 'exchange': self._exchange_key.publickey()
+            'exchange': None
+        } 
+        return ThirdPersonIdentity1(author_muid=self.author_muid, keys=keys)
     
     @classmethod
     def _new_secret(cls):
@@ -842,7 +855,13 @@ class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
     def _sign(self, data):
         ''' Placeholder signing method.
         '''
-        return _dummy_signature
+        h = _FrozenSHA512(data)
+        signer = PSS.new(
+            self._signature_key, 
+            mask_func=_PSS_MGF, 
+            salt_bytes=_PSS_SALT_LENGTH
+        )
+        return signer.sign(h)
         
     def _decrypt_asym(self, data):
         ''' Placeholder asymmetric decryptor.
@@ -880,24 +899,28 @@ class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
         
 
 class ThirdPersonIdentity1(_ThirdPersonBase):        
-    def __init__(self, 
-                author_muid, 
-                verification_key, 
-                encryption_key, 
-                exchange_key, 
-                *args, **kwargs):
+    def __init__(self, author_muid, keys, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ciphersuite = 1
         self.author_muid = _dummy_muid
+        
+        try:
+            self._signature_key = keys['signature']
+            self._encryption_key = keys['encryption']
+            self._exchange_key = keys['exchange']
+        except (KeyError, TypeError) as e:
+            raise RuntimeError(
+                'Generating ID from existing keys requires dict-like obj '
+                'with "signature", "encryption", and "exchange" keys.'
+            ) from e
         
     # @classmethod
     # def _hash(cls, *args, **kwargs):
     #     ''' The hasher used for information addressing.
     #     '''
     #     return None
-        
-    @classmethod
-    def _verify(cls, *args, **kwargs):
+       
+    def _verify(self, signature, data):
         ''' Verifies an author's signature against bites. Errors out if 
         unsuccessful. Returns True if successful.
         
@@ -905,6 +928,13 @@ class ThirdPersonIdentity1(_ThirdPersonBase):
         formatted with all necessary components for a public key (?).
         Signature must be bytes-like.
         '''
+        h = _FrozenSHA512(data)
+        signer = PSS.new(self._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)
+        try:
+            signer.verify(h, signature)
+        except ValueError as e:
+            raise SecurityError('Failed to verify signature.') from e
+            
         return True
         
     @classmethod

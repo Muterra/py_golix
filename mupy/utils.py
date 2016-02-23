@@ -62,7 +62,8 @@ class Muid():
         setattr(self, item, value)
         
     def __hash__(self):
-        condensed = int.to_bytes(self.algo, length=1, byteorder='big') + self.address
+        address = self.address or b''
+        condensed = int.to_bytes(self.algo, length=1, byteorder='big') + address
         return hash(condensed)
         
     def __eq__(self, other):

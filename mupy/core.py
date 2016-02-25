@@ -32,7 +32,7 @@ mupy: A python library for Muse object manipulation.
 '''
 
 # Control * imports
-__all__ = ['Muid']
+__all__ = ['Muid', 'SecurityError']
 
 # Global dependencies
 import struct
@@ -50,6 +50,7 @@ from warnings import warn
 # Will import: 'MEOC', 'MOBS', 'MOBD', 'MDXX', 'MEPR', 'MPAK', 'MPNK'
 from ._getlow import *
 from .utils import Muid
+from .utils import SecurityError
         
         
 # ###############################################

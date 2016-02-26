@@ -46,6 +46,7 @@ from .utils import _dummy_mac
 from .utils import _dummy_signature
 from .utils import _dummy_address
 from .utils import _dummy_muid
+from .utils import _dummy_pubkey
 
 # ----------------------------------------------------------------------
 # Hash algo identifier / length block
@@ -103,6 +104,16 @@ def _gen_dispatch(header, lookup, key):
             raise parsers.ParseError('No matching version number available.')
     return _dispatch_obj
     
+# This should keep working even with the addition of new version numbers
+def _gen_body_update(header, lookup, key):
+    @references(header)
+    def _update_body(self, parsed, key=key):
+        try:
+            self['body'][key] = lookup[parsed]
+        except KeyError:
+            raise parsers.ParseError('No matching object body key available.')
+    return _update_body
+    
 def _callback_multi(*funcs):
     def generated_callback(value):
         for f in funcs:
@@ -151,10 +162,56 @@ _asym_parsers[0] = ParseHelper(parsers.Literal(_dummy_asym, verify=False))
 _asym_parsers[1] = ParseHelper(parsers.Blob(length=512))
 _asym_parsers[2] = ParseHelper(parsers.Blob(length=512))
 
+_pubkey_parsers_sig = {}
+_pubkey_parsers_sig[0] = ParseHelper(parsers.Literal(_dummy_pubkey, verify=False))
+_pubkey_parsers_sig[1] = ParseHelper(parsers.Blob(length=512))
+_pubkey_parsers_sig[2] = ParseHelper(parsers.Blob(length=512))
+
+_pubkey_parsers_encrypt = {}
+_pubkey_parsers_encrypt[0] = ParseHelper(parsers.Literal(_dummy_pubkey, verify=False))
+_pubkey_parsers_encrypt[1] = ParseHelper(parsers.Blob(length=512))
+_pubkey_parsers_encrypt[2] = ParseHelper(parsers.Blob(length=512))
+
+_pubkey_parsers_exchange = {}
+_pubkey_parsers_exchange[0] = ParseHelper(parsers.Literal(_dummy_pubkey, verify=False))
+_pubkey_parsers_exchange[1] = ParseHelper(parsers.Blob(length=32))
+_pubkey_parsers_exchange[2] = ParseHelper(parsers.Blob(length=32))
+
 # ----------------------------------------------------------------------
 # Use this whenever a MUID list is required
 
 _muidlist = ListyParser(parsers=[generate_muid_parser()])
+
+# ----------------------------------------------------------------------
+# MIDC format blocks
+
+_midc = SmartyParser()
+_midc['magic'] = ParseHelper(parsers.Literal(b'MIDC'))
+_midc['version'] = ParseHelper(parsers.Int32(signed=False))
+_midc['cipher'] = ParseHelper(parsers.Int8(signed=False))
+_midc['body'] = None
+_midc['muid'] = generate_muid_parser()
+_midc['signature'] = ParseHelper(parsers.Null())
+
+_midc_lookup = {}
+_midc_lookup[2] = SmartyParser()
+_midc_lookup[2]['signature_key'] = None
+_midc_lookup[2]['encryption_key'] = None
+_midc_lookup[2]['exchange_key'] = None
+
+_midc_cipher_update = _callback_multi(
+    _gen_body_update(_midc, _pubkey_parsers_sig, 'signature_key'),
+    _gen_body_update(_midc, _pubkey_parsers_encrypt, 'encryption_key'),
+    _gen_body_update(_midc, _pubkey_parsers_exchange, 'exchange_key')
+)
+
+_midc['version'].register_callback('prepack', _gen_dispatch(_midc, _midc_lookup, 'body'))
+_midc['version'].register_callback('postunpack', _gen_dispatch(_midc, _midc_lookup, 'body'))
+_midc['cipher'].register_callback('prepack', _midc_cipher_update)
+_midc['cipher'].register_callback('postunpack', _midc_cipher_update)
+
+_midc.latest = max(list(_midc_lookup))
+_midc.versions = set(_midc_lookup)
 
 # ----------------------------------------------------------------------
 # MEOC format blocks
@@ -181,23 +238,6 @@ _meoc['cipher'].register_callback('postunpack', _gen_dispatch(_meoc, _signature_
 
 _meoc.latest = max(list(_meoc_lookup))
 _meoc.versions = set(_meoc_lookup)
-
-# We need to refactor once smartyparse is rewritten to modify the same
-# object continuously. Currently, smartyparse handles nested smartyparsers
-# as their own independent unit, so you can't register a callback on the
-# whole set of data. Which is a problem. Basically, nested SP's have no
-# awareness of their surrounding file context, so you can't do a callback
-# to pull in their context. So currently, you have to do it as a multi-pass
-# thingajobber.
-
-def _meoc_hash(meoc_spo):
-    collated = (
-        meoc_spo['magic'],
-        meoc_spo['version'],
-        meoc_spo['cipher'],
-        meoc_spo['body']['author'],
-        meoc_spo['body'],
-    )
 
 # ----------------------------------------------------------------------
 # MOBS format blocks
@@ -294,16 +334,11 @@ _mear_lookup = {}
 _mear_lookup[12] = SmartyParser()
 _mear_lookup[12]['recipient'] = generate_muid_parser()
 _mear_lookup[12]['payload'] = None
-    
-# This should keep working even with the addition of new version numbers
-def _generate_asym_update(container):
-    def _update_asym(cipher):
-        container['body']['payload'] = _asym_parsers[cipher]
-    return _update_asym
 
 _mear_cipher_update = _callback_multi(
     _gen_dispatch(_mear, _mac_parsers, 'signature'), 
-    _generate_asym_update(_mear))
+    _gen_body_update(_mear, _asym_parsers, 'payload')
+)
 _mear['version'].register_callback('prepack', _gen_dispatch(_mear, _mear_lookup, 'body'))
 _mear['version'].register_callback('postunpack', _gen_dispatch(_mear, _mear_lookup, 'body'))
 _mear['cipher'].register_callback('prepack', _mear_cipher_update)

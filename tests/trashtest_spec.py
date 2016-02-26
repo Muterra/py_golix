@@ -40,11 +40,13 @@ import collections
 from mupy import Muid
 
 # These are abnormal (don't use in production) inclusions
-from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _asym_nk, _asym_else
-from mupy._spec import _dummy_signature
-from mupy._spec import _dummy_mac
-from mupy._spec import _dummy_asym
-from mupy._spec import _dummy_address
+from mupy._spec import _midc, _meoc, _mobs, _mobd, _mdxx, _mear
+from mupy._spec import _asym_pr, _asym_ak, _asym_nk, _asym_else
+from mupy.utils import _dummy_signature
+from mupy.utils import _dummy_mac
+from mupy.utils import _dummy_asym
+from mupy.utils import _dummy_address
+from mupy.utils import _dummy_pubkey
 
 # ###############################################
 # Testing
@@ -53,6 +55,23 @@ from mupy._spec import _dummy_address
 _dummy_muid = Muid(0, _dummy_address)
                 
 if __name__ == '__main__':
+    # MIDC test parsers
+    midc_1 = {
+        'magic': b'MIDC',
+        'version': 2,
+        'cipher': 0,
+        'body': {
+            'signature_key': _dummy_pubkey,
+            'encryption_key': _dummy_pubkey,
+            'exchange_key': _dummy_pubkey,
+        },
+        'muid': _dummy_muid,
+        'signature': None
+    }
+    
+    midc_1p = _midc.pack(midc_1)
+    midc_1r = _midc.unpack(midc_1p)
+    
     # MEOC test parsers
     meoc_1 = {
         'magic': b'MEOC',

@@ -51,6 +51,7 @@ from warnings import warn
 from ._getlow import *
 from .utils import Muid
 from .utils import SecurityError
+from .utils import Secret
         
         
 # ###############################################

@@ -121,6 +121,7 @@ class Secret():
     def from_bytes(cls, data):
         raise NotImplementedError('Cannot yet load secrets from bytes.')
 
+
 # ----------------------------------------------------------------------
 # Mock objects for zeroth hash/ciphersuites
 

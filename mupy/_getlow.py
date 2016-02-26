@@ -46,7 +46,7 @@ import struct
 import os
 from warnings import warn
 
-
+from ._spec import _midc
 from ._spec import _meoc
 from ._spec import _mobs
 from ._spec import _mobd
@@ -72,6 +72,15 @@ from .utils import SecurityError
 
 # ----------------------------------------------------------------------
 # THIS MAKES ME FEEL DIRTY.
+
+# We need to refactor once smartyparse is rewritten to modify the same
+# object continuously. Currently, smartyparse handles nested smartyparsers
+# as their own independent unit, so you can't register a callback on the
+# whole set of data. Which is a problem. Basically, nested SP's have no
+# awareness of their surrounding file context, so you can't do a callback
+# to pull in their context. So currently, you have to do it as a multi-pass
+# thingajobber.
+
 # This is a total hack-up job to bend the smartyparse library to my will,
 # until such time as it can be rewritten to support more powerful callback
 # syntax, and access to global pack_into data for nested smartyparsers,
@@ -313,6 +322,83 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         
         # Don't forget this part.
         return self
+       
+
+class MIDC(_MuseObjectBase):
+    ''' Muse identity container.
+    
+    Low level object. In most cases, you don't want this.
+    '''
+    PARSER = _midc
+    
+    def __init__(self, 
+                signature_key=None, 
+                encryption_key=None, 
+                exchange_key=None, 
+                _control=None, *args, **kwargs):
+        ''' Generates MIDC object. Keys must be suitable for the 
+        declared ciphersuite.
+        '''
+        super().__init__(_control=_control, *args, **kwargs)
+        
+        # Don't overwrite anything we loaded from _control!
+        if not _control:
+            self.signature_key = signature_key
+            self.encryption_key = encryption_key
+            self.exchange_key = exchange_key
+        
+    @property
+    def signature_key(self):
+        # This should never not be defined, but subclasses might screw with
+        # that assumption.
+        try:
+            return self._control['body']['signature_key']
+        except KeyError as e:
+            raise AttributeError('Signature key not yet defined.') from e
+            
+    @signature_key.setter
+    def signature_key(self, value):
+        # DON'T implement a deleter, because without a payload, this is
+        # meaningless. Use None for temporary payloads.
+        self._control['body']['signature_key'] = value
+        
+    @property
+    def encryption_key(self):
+        # This should never not be defined, but subclasses might screw with
+        # that assumption.
+        try:
+            return self._control['body']['encryption_key']
+        except KeyError as e:
+            raise AttributeError('Encryption key not yet defined.') from e
+            
+    @encryption_key.setter
+    def encryption_key(self, value):
+        # DON'T implement a deleter, because without a payload, this is
+        # meaningless. Use None for temporary payloads.
+        self._control['body']['encryption_key'] = value
+        
+    @property
+    def exchange_key(self):
+        # This should never not be defined, but subclasses might screw with
+        # that assumption.
+        try:
+            return self._control['body']['exchange_key']
+        except KeyError as e:
+            raise AttributeError('exchange key not yet defined.') from e
+            
+    @exchange_key.setter
+    def exchange_key(self, value):
+        # DON'T implement a deleter, because without a payload, this is
+        # meaningless. Use None for temporary payloads.
+        self._control['body']['exchange_key'] = value
+        
+    def pack(self, *args, **kwargs):
+        ''' Quick and dirty packing, which immediately sets self._signed
+        to true. Will exactly mimic behavior of super, except for that.
+        '''
+        result = super().pack(*args, **kwargs)
+        self._signed = True
+        return result
        
 
 class MEOC(_MuseObjectBase):

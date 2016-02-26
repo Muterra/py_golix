@@ -41,39 +41,59 @@ from mupy import Muid
 
 # These are abnormal (don't use in production) inclusions.
 from mupy._getlow import MEOC
+from mupy._getlow import MIDC
 
-from Crypto.PublicKey import RSA
-
-from mupy._spec import _dummy_signature
-from mupy._spec import _dummy_mac
-from mupy._spec import _dummy_asym
-from mupy._spec import _dummy_address
+from mupy.utils import _dummy_signature
+from mupy.utils import _dummy_mac
+from mupy.utils import _dummy_asym
+from mupy.utils import _dummy_address
+from mupy.utils import _dummy_pubkey
+from mupy.utils import _dummy_muid
 
 # These are soon-to-be-removed abnormal imports
-from mupy._spec import _meoc, _mobs, _mobd, _mdxx, _mear, _asym_pr, _asym_ak, _asym_nk, _asym_else
+from mupy._spec import _midc, _meoc, _mobs, _mobd, _mdxx, _mear
+from mupy._spec import _asym_pr, _asym_ak, _asym_nk, _asym_else
 
 # ###############################################
 # Testing
 # ###############################################
-
-_dummy_muid = Muid(0, _dummy_address)
                 
 if __name__ == '__main__':
-    # MEOC dummy test.
+    # MIDC dummy address test.
+    midc_1 = MIDC(
+        signature_key=_dummy_pubkey,
+        encryption_key=_dummy_pubkey,
+        exchange_key=_dummy_pubkey,
+    )
+    midc_1.pack(cipher=0, address_algo=0)
+    midc_1p = midc_1.packed
+    midc_1r = MIDC.unpack(midc_1p)
+    
+    # MIDC actual address test.
+    midc_2 = MIDC(
+        signature_key=_dummy_pubkey,
+        encryption_key=_dummy_pubkey,
+        exchange_key=_dummy_pubkey,
+    )
+    midc_2.pack(cipher=0, address_algo=1)
+    midc_2p = midc_2.packed
+    midc_2r = MIDC.unpack(midc_2p)
+    
+    # MEOC dummy address test.
     _dummy_payload = b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
     meoc_1 = MEOC(author=_dummy_muid, payload=_dummy_payload)
     meoc_1.pack(cipher=0, address_algo=0)
     meoc_1.pack_signature(_dummy_signature)
     meoc_1p = meoc_1.packed
+    meoc_1r = MEOC.unpack(meoc_1p)
     
-    # meoc_1r = MEOC.unpack(meoc_1p)
-    
-    # MEOC actual test.
+    # MEOC actual address test.
     _dummy_payload = b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
     meoc_2 = MEOC(author=_dummy_muid, payload=_dummy_payload)
     meoc_2.pack(cipher=0, address_algo=1)
     meoc_2.pack_signature(_dummy_signature)
     meoc_2p = meoc_2.packed
+    meoc_2r = MEOC.unpack(meoc_2p)
     
     import IPython
     IPython.embed()

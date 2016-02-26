@@ -119,10 +119,12 @@ from .utils import _dummy_mac
 from .utils import _dummy_signature
 from .utils import _dummy_address
 from .utils import _dummy_muid
+from .utils import _dummy_pubkey
 from .utils import ADDRESS_ALGOS
 from .utils import Secret
 
 from ._getlow import MEOC
+from ._getlow import MIDC
 
 # Some globals
 DEFAULT_ADDRESSER = 1
@@ -244,11 +246,27 @@ class _CipherSuiteBase(metaclass=abc.ABCMeta):
         pass
     
     
-class _IdentityBase():
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ciphersuite = None
-        self.author_muid = None
+class _IdentityBase(metaclass=abc.ABCMeta):
+    def __init__(self, keys, author_muid):
+        self._author_muid = author_muid
+        
+        try:
+            self._signature_key = keys['signature']
+            self._encryption_key = keys['encryption']
+            self._exchange_key = keys['exchange']
+        except (KeyError, TypeError) as e:
+            raise RuntimeError(
+                'Generating ID from existing keys requires dict-like obj '
+                'with "signature", "encryption", and "exchange" keys.'
+            ) from e
+    
+    @property
+    def author_muid(self):
+        return self._author_muid
+        
+    @property
+    def ciphersuite(self):
+        return self._ciphersuite
         
     @classmethod
     def _dispatch_address(cls, address_algo):
@@ -264,9 +282,32 @@ class _IdentityBase():
 class _FirstPersonBase(metaclass=abc.ABCMeta):
     DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
     
-    def __init__(self, address_algo, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, keys=None, author_muid=None, address_algo='default', *args, **kwargs):
         self.address_algo = self._dispatch_address(address_algo)
+        
+        # Load an existing identity
+        if keys is not None and author_muid is not None:
+            pass
+            
+        # Catch any improper declaration
+        elif keys is not None or author_muid is not None:
+            raise TypeError(
+                'Generating an ID manually from existing keys requires '
+                'both keys and author_muid.'
+            )
+            
+        # Generate a new identity
+        else:
+            keys = self._generate_keys()
+            self._third_party = self._generate_third_person(keys, self.address_algo)
+            author_muid = self._third_party.author_muid
+            
+        # Now dispatch super() with the adjusted keys, author_muid
+        super().__init__(keys=keys, author_muid=author_muid, *args, **kwargs)
+    
+    @property
+    def third_party(self):
+        return self._third_party
          
     def make_meoc(self, plaintext):
         meoc = MEOC(author=self.author_muid)
@@ -278,17 +319,18 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         # This will need to be converted into a namedtuple or something
         return secret, meoc.muid, meoc.packed
         
+    @classmethod
     @abc.abstractmethod
-    def generate_third_person(self):
+    def _generate_third_person(cls, keys, address_algo):
+        ''' MUST ONLY be called when generating one from scratch, not 
+        when loading one. Loading must always be done directly through
+        loading a ThirdParty.
+        '''
         pass
         
-    # def build(self, obj):
-    #     obj.build()
-    #     signature = self.sign
-        
-    # def sign(self, obj):
-    #     obj.pack_signature(_dummy_signature)
-    #     return obj.packed
+    @abc.abstractmethod
+    def _generate_keys(self):
+        pass
     
     @abc.abstractmethod
     def _new_secret(self):
@@ -328,6 +370,28 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     
     
 class _ThirdPersonBase(metaclass=abc.ABCMeta):
+    @classmethod
+    def from_keys(cls, keys, address_algo):
+        try:
+            # Turn them into bytes first.
+            packed_keys = cls._pack_keys(keys)
+        except (KeyError, TypeError) as e:
+            raise RuntimeError(
+                'Generating ID from existing keys requires dict-like obj '
+                'with "signature", "encryption", and "exchange" keys.'
+            ) from e
+            
+        midc = MIDC( 
+            signature_key=packed_keys['signature'],
+            encryption_key=packed_keys['encryption'],
+            exchange_key=packed_keys['exchange']
+        )
+        midc.pack(cipher=cls._ciphersuite, address_algo=address_algo)
+        author_muid = midc.muid
+        self = cls(keys=keys, author_muid=author_muid)
+        self.packed = midc.packed
+        return self
+    
     def load_meoc(self, secret, meoc):
         # Handle loading a raw meoc, if that's what's passed
         try:
@@ -341,6 +405,11 @@ class _ThirdPersonBase(metaclass=abc.ABCMeta):
         plaintext = self._decrypt(secret, meoc.payload)
         # This will need to be converted into a namedtuple or something
         return meoc.muid, plaintext
+        
+    @classmethod
+    @abc.abstractmethod
+    def _pack_keys(cls, keys):
+        pass
         
     @abc.abstractmethod
     def _verify(self, signature, data):
@@ -452,37 +521,31 @@ class CipherSuite0(_CipherSuiteBase):
         return b'[[ PLACEHOLDER DECRYPTED SYMMETRIC MESSAGE. Hello world! ]]'
         
         
-class FirstPersonIdentity0(_IdentityBase, _FirstPersonBase):
+class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
     ''' FOR TESTING PURPOSES ONLY. 
     
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
+    
+    NOTE THAT INHERITANCE ORDER MATTERS! Must be first a FirstPerson, 
+    and second an Identity.
     '''
-    def __init__(self, keys=None, author_muid=None, address_algo='default', *args, **kwargs):
-        super().__init__(address_algo)
-        self.ciphersuite = 0
-        self.author_muid = _dummy_muid
+    _ciphersuite = 0
         
-        self._signature_key = None
-        self._encryption_key = None
-        self._exchange_key = None
+    @classmethod
+    def _generate_third_person(cls, keys, address_algo):
+        keys = {}
+        keys['signature'] = _dummy_pubkey
+        keys['encryption'] = _dummy_pubkey
+        keys['exchange'] = _dummy_pubkey
+        return ThirdPersonIdentity0.from_keys(keys, address_algo)
         
-    # def build(self, obj):
-    #     obj.build()
-    #     signature = self.sign
-        
-    # def sign(self, obj):
-    #     obj.pack_signature(_dummy_signature)
-    #     return obj.packed
-        
-    def generate_third_person(self):
-        return ThirdPersonIdentity0()
-        
-    # @classmethod
-    # def _hash(cls, *args, **kwargs):
-    #     ''' The hasher used for information addressing.
-    #     '''
-    #     return None
+    def _generate_keys(self):
+        keys = {}
+        keys['signature'] = _dummy_pubkey
+        keys['encryption'] = _dummy_pubkey
+        keys['exchange'] = _dummy_pubkey
+        return keys
     
     @classmethod
     def _new_secret(cls):
@@ -536,17 +599,12 @@ class FirstPersonIdentity0(_IdentityBase, _FirstPersonBase):
         return b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
     
         
-class ThirdPersonIdentity0(_IdentityBase, _ThirdPersonBase):
-    def __init__(self, author_muid, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ciphersuite = 0
-        self.author_muid = _dummy_muid
+class ThirdPersonIdentity0(_ThirdPersonBase, _IdentityBase):
+    _ciphersuite = 0
         
-    # @classmethod
-    # def _hash(cls, *args, **kwargs):
-    #     ''' The hasher used for information addressing.
-    #     '''
-    #     return None
+    @classmethod
+    def _pack_keys(cls, keys):
+        return keys
         
     @classmethod
     def _verify(cls, *args, **kwargs):
@@ -774,45 +832,28 @@ _PSS_MGF = lambda x, y: MGF1(x, y, SHA512)
 # or, on the receiving end:
 # PSS.new(public_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).verify(h, signature)
 # Verification returns nothing (=None) if successful, raises ValueError if not
-class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
+class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
     ''' ... Hmmm
     '''
-    def __init__(self, keys=None, author_muid=None, address_algo='default', *args, **kwargs):
-        super().__init__(address_algo)
-        self.ciphersuite = 1
-        self.address_algo = self._dispatch_address(address_algo)
-        self.author_muid = author_muid
+    _ciphersuite = 1
         
-        if keys and author_muid:
-            try:
-                self._signature_key = keys['signature']
-                self._encryption_key = keys['encryption']
-                self._exchange_key = keys['exchange']
-            except (KeyError, TypeError) as e:
-                raise RuntimeError(
-                    'Generating ID from existing keys requires dict-like obj '
-                    'with "signature", "encryption", and "exchange" keys.'
-                ) from e
-        elif keys or author_muid:
-            raise TypeError(
-                'Generating an ID manually from existing keys requires '
-                'both keys and author_muid.'
-            )
-        else:
-            self._signature_key = RSA.generate(4096)
-            self._encryption_key = RSA.generate(4096)
-            self._exchange_key = ECDHPrivate()
-            # Use this temporarily until we're creating our own author file
-            self.author_muid = _dummy_muid
-        
-    def generate_third_person(self):
-        keys = {
-            'signature': self._signature_key.publickey(),
-            'encryption': self._encryption_key.publickey(),
-            # 'exchange': self._exchange_key.publickey()
-            'exchange': self._exchange_key.get_public()
+    @classmethod
+    def _generate_third_person(cls, keys, address_algo):
+        pubkeys = {
+            'signature': keys['signature'].publickey(),
+            'encryption': keys['encryption'].publickey(),
+            'exchange': keys['exchange'].get_public()
         } 
-        return ThirdPersonIdentity1(author_muid=self.author_muid, keys=keys)
+        del keys
+        return ThirdPersonIdentity1.from_keys(keys=pubkeys, address_algo=address_algo)
+        
+    @classmethod
+    def _generate_keys(cls):
+        keys = {}
+        keys['signature'] = RSA.generate(4096)
+        keys['encryption'] = RSA.generate(4096)
+        keys['exchange'] = ECDHPrivate()
+        return keys
     
     @classmethod
     def _new_secret(cls):
@@ -868,27 +909,17 @@ class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
         return cipher.encrypt(data)
         
 
-class ThirdPersonIdentity1(_ThirdPersonBase):        
-    def __init__(self, author_muid, keys, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ciphersuite = 1
-        self.author_muid = _dummy_muid
+class ThirdPersonIdentity1(_ThirdPersonBase, _IdentityBase): 
+    _ciphersuite = 1  
         
-        try:
-            self._signature_key = keys['signature']
-            self._encryption_key = keys['encryption']
-            self._exchange_key = keys['exchange']
-        except (KeyError, TypeError) as e:
-            raise RuntimeError(
-                'Generating ID from existing keys requires dict-like obj '
-                'with "signature", "encryption", and "exchange" keys.'
-            ) from e
-        
-    # @classmethod
-    # def _hash(cls, *args, **kwargs):
-    #     ''' The hasher used for information addressing.
-    #     '''
-    #     return None
+    @classmethod
+    def _pack_keys(cls, keys):
+        packkeys = {
+            'signature': int.to_bytes(keys['signature'].n, length=512, byteorder='big'),
+            'encryption': int.to_bytes(keys['encryption'].n, length=512, byteorder='big'),
+            'exchange': keys['exchange'].public,
+        }
+        return packkeys
        
     def _verify(self, signature, data):
         ''' Verifies an author's signature against bites. Errors out if 

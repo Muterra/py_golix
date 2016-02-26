@@ -70,34 +70,27 @@ if __name__ == '__main__':
     # Check this out!
     known_third_parties = {}
     
-    # Dummy first-person identity tests with dummy, real addresser.
-    fake_first_id_1 = FirstPersonIdentity0(author_muid=None, address_algo=0)
-    fake_first_id_2 = FirstPersonIdentity0(author_muid=None, address_algo=1)
+    # Dummy first-person identity tests with real addresser.
+    fake_first_id = FirstPersonIdentity0(address_algo=1)
+    fake_third_id = fake_first_id.third_party
     
-    # Dummy first-person identity tests with dummy, real addresser.
-    fake_third_id = ThirdPersonIdentity0(author_muid=_dummy_muid)
+    # Keep them around for later!
     known_third_parties[fake_third_id.author_muid] = fake_third_id
     
     # Try it for rls
     first_id_1 = FirstPersonIdentity1(address_algo=1)
-    third_id_1 = first_id_1.generate_third_person()
+    third_id_1 = first_id_1.third_party
     
     # Test them on MEOCs:
     _dummy_payload = b'[[ Hello, world? ]]'
     
-    secret1, muid1, meoc_1p = fake_first_id_1.make_meoc(_dummy_payload)
-    secret2, muid2, meoc_2p = fake_first_id_2.make_meoc(_dummy_payload)
+    secret1, muid1, meoc_1p = fake_first_id.make_meoc(_dummy_payload)
     secret3, muid3, meoc_3p = first_id_1.make_meoc(_dummy_payload)
     
     # Normal unpacking operation for first
     meoc_1r = MEOC.unpack(meoc_1p)
     author_1 = known_third_parties[meoc_1r.author]
     muid_1, meoc_1r_plaintext = author_1.load_meoc(secret1, meoc_1p)
-    
-    # Normal unpacking operation for second
-    meoc_2r = MEOC.unpack(meoc_2p)
-    author_2 = known_third_parties[meoc_2r.author]
-    muid_2, meoc_2r_plaintext = author_2.load_meoc(secret2, meoc_2p)
     
     # Extra-normal unpacking operation for third.
     # Note that the author lookup ideally shouldn't be necessary if you already 

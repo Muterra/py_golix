@@ -107,6 +107,8 @@ from Crypto.Signature.pss import MGF1
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util import Counter
+from donna25519 import PrivateKey as ECDHPrivate
+from donna25519 import PublicKey as ECDHPublic
 
 # Interpackage dependencies
 from .utils import Muid
@@ -118,6 +120,7 @@ from .utils import _dummy_signature
 from .utils import _dummy_address
 from .utils import _dummy_muid
 from .utils import ADDRESS_ALGOS
+from .utils import Secret
 
 from ._getlow import MEOC
 
@@ -154,39 +157,6 @@ class _FrozenHash():
 
 class _FrozenSHA512(_FrozenHash, SHA512.SHA512Hash):
     pass
-    
-    
-class Secret():
-    ''' All secrets have a key. Some have a nonce or IV (seed). All must 
-    be able to be condensed into __bytes__. All must also be retrievable 
-    from a bytes object.
-    '''
-    # We expect to have a lot of secrets, so let's add slots. Also, there's
-    # a case to be made for discouraging people from using Secrets for
-    # anything other than, well, secrets.
-    __slots__ = ['_key', '_seed']
-    
-    def __init__(self, key, seed=None):
-        if seed is None:
-            seed = b''
-            
-        self._key = key
-        self._seed = seed
-    
-    def __bytes__(self):
-        raise NotImplementedError('Bytes representation not yet supported.')
-       
-    @property
-    def key(self):
-        return self._key
-        
-    @property
-    def seed(self):
-        return self._seed
-        
-    @classmethod
-    def from_bytes(cls, data):
-        raise NotImplementedError('Cannot yet load secrets from bytes.')
 
 
 class _CipherSuiteBase(metaclass=abc.ABCMeta):
@@ -831,7 +801,7 @@ class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
         else:
             self._signature_key = RSA.generate(4096)
             self._encryption_key = RSA.generate(4096)
-            self._exchange_key = None
+            self._exchange_key = ECDHPrivate()
             # Use this temporarily until we're creating our own author file
             self.author_muid = _dummy_muid
         
@@ -840,7 +810,7 @@ class FirstPersonIdentity1(_IdentityBase, _FirstPersonBase):
             'signature': self._signature_key.publickey(),
             'encryption': self._encryption_key.publickey(),
             # 'exchange': self._exchange_key.publickey()
-            'exchange': None
+            'exchange': self._exchange_key.get_public()
         } 
         return ThirdPersonIdentity1(author_muid=self.author_muid, keys=keys)
     

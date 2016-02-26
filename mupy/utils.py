@@ -87,6 +87,39 @@ class Muid():
             pass
         else:
             self._address = address
+    
+    
+class Secret():
+    ''' All secrets have a key. Some have a nonce or IV (seed). All must 
+    be able to be condensed into __bytes__. All must also be retrievable 
+    from a bytes object.
+    '''
+    # We expect to have a lot of secrets, so let's add slots. Also, there's
+    # a case to be made for discouraging people from using Secrets for
+    # anything other than, well, secrets.
+    __slots__ = ['_key', '_seed']
+    
+    def __init__(self, key, seed=None):
+        if seed is None:
+            seed = b''
+            
+        self._key = key
+        self._seed = seed
+    
+    def __bytes__(self):
+        raise NotImplementedError('Bytes representation not yet supported.')
+       
+    @property
+    def key(self):
+        return self._key
+        
+    @property
+    def seed(self):
+        return self._seed
+        
+    @classmethod
+    def from_bytes(cls, data):
+        raise NotImplementedError('Cannot yet load secrets from bytes.')
 
 # ----------------------------------------------------------------------
 # Mock objects for zeroth hash/ciphersuites

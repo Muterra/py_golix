@@ -107,14 +107,14 @@ if __name__ == '__main__':
     # MOBD test parsers
     mobd_1 = {
         'magic': b'MOBD',
-        'version': 13,
+        'version': 14,
         'cipher': 0,
         'body': {
             'binder': _dummy_muid,
             'history': [],
             'targets': [_dummy_muid, _dummy_muid],
-            'muid_dynamic': _dummy_muid,
         },
+        'muid_dynamic': _dummy_muid,
         'muid': _dummy_muid,
         'signature': _dummy_signature
     }

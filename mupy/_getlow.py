@@ -241,6 +241,15 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
             return self._address_algo
         else:
             raise RuntimeError('Address algorithm not yet defined.')
+    
+    def _get_sig_length(self):
+        ''' Quick and dirty way to get the object's signature length; 
+        easily overwritten when it's not the cipher defined (eg: midc, 
+        mear).
+        
+        # Accommodate SP on the whole damn thing currently.
+        '''
+        return cipher_length_lookup[self.cipher]['sig']
         
     def pack(self, address_algo, cipher):
         ''' Performs raw packing using the smartyparser in self.PARSER.
@@ -251,44 +260,45 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         self._address_algo = address_algo
         
         # Accommodate SP
-        offset_cache = []
-        offset_cacher = _generate_offset_cacher(offset_cache, self.PARSER['muid'])
-        self.PARSER['muid'].register_callback('postpack', offset_cacher)
-        
-        muid_padding = bytes(self._addresser.ADDRESS_LENGTH)
-        self.muid = Muid(self.address_algo, muid_padding)
-        
-        # Note that it isn't actually necessary to correctly lengthen
-        # packed, because the signature is always last, so we can always
-        # simply extend it past the end.
-        sig_padding = bytes(cipher_length_lookup[self.cipher]['sig'])
-        # sig_padding = b''
+        # This is really simple and is hard-coding a reliance on the order
+        # of signature and hash in relation to the rest of the formats.
+        # It's quick and dirty but effective and less prone to bugs than fancy
+        # things, especially with smartyparse not as reliable as I'd like.
+        sig_length = self._get_sig_length()
+        sig_padding = bytes(sig_length)
         self.signature = sig_padding
+        hash_length = self._addresser.ADDRESS_LENGTH
+        muid_padding = bytes(hash_length)
+        self.muid = Muid(self.address_algo, muid_padding)
         
         # Normal
         packed = self.PARSER.pack(self._control)
         
-        # Normal-ish, courtesy of above
-        self.signature = None
-        
         # Accommodate SP
-        address_offset = offset_cache.pop()
-        sig_offset = address_offset + self._addresser.ADDRESS_LENGTH
-        self._sig_offset = sig_offset
+        final_size = len(packed)
+        sig_slice = slice(
+            final_size - sig_length,
+            None
+        )
+        hash_slice = slice(
+            sig_slice.start - hash_length,
+            sig_slice.start
+        )
+        calc_slice = slice(
+            0,
+            hash_slice.start
+        )
+        self._sig_slice = sig_slice
+        
         # Hash the packed data, until the appropriate point, and then sign
         # Conversion to bytes necessary for PyCryptoDome API
-        address = self._addresser.create(bytes(packed[:address_offset]))
-        
-        # Rewrite packed with the hash and signature
-        packed[address_offset:sig_offset] = address
-        self._packed = packed
-        
-        # Normal
-        # Useful for anything referencing this post-build
+        address = self._addresser.create(bytes(packed[calc_slice]))
+        packed[hash_slice] = address
         self.muid = Muid(self.address_algo, address)
         
-        # # Normal
-        # return self.PARSER.pack(self._control)
+        # Normal-ish, courtesy of above
+        self._packed = packed
+        self.signature = None
         
     def pack_signature(self, signature):
         if not self._packed:
@@ -296,8 +306,9 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
                 'Signature cannot be packed without first calling pack().'
             )
         self.signature = signature
-        self._packed[self._sig_offset:] = signature
+        self._packed[self._sig_slice] = signature
         self._signed = True
+        del self._sig_slice
         
     @classmethod
     def unpack(cls, data):
@@ -399,6 +410,10 @@ class MIDC(_MuseObjectBase):
         result = super().pack(*args, **kwargs)
         self._signed = True
         return result
+        
+    def _get_sig_length(self):
+        # Accommodate SP
+        return 0
        
 
 class MEOC(_MuseObjectBase):
@@ -507,19 +522,22 @@ class MOBD(_MuseObjectBase):
     def __init__(self, 
                 binder=None, 
                 history=None, 
-                target=None, 
+                targets=None, 
                 dynamic_address=None, 
                 _control=None, *args, **kwargs):
         ''' Generates MOBS object.
         
-        Binder and target should be a utils.Muid object (or similar).
+        Binder, targets, and dynamic_address should be a utils.Muid 
+        object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
         # Don't overwrite anything we loaded from _control!
         if not _control:
             self.binder = binder
-            self.target = target
+            self.targets = targets
+            self.dynamic_address = dynamic_address
+            self.history = history
         
     @property
     def binder(self):
@@ -533,15 +551,173 @@ class MOBD(_MuseObjectBase):
         self._control['body']['binder'] = value
         
     @property
-    def target(self):
+    def targets(self):
         try:
-            return self._control['body']['target']
+            return self._control['body']['targets']
         except KeyError as e:
-            raise AttributeError('Target not yet defined.') from e
+            raise AttributeError('Targets not yet defined.') from e
             
-    @target.setter
-    def target(self, value):
-        self._control['body']['target'] = value
+    @targets.setter
+    def targets(self, value):
+        self._control['body']['targets'] = value
+        
+    @property
+    def dynamic_address(self):
+        try:
+            return self._control['muid_dynamic']
+        except KeyError as e:
+            raise AttributeError('Dynamic address not yet defined.') from e
+            
+    @dynamic_address.setter
+    def dynamic_address(self, value):
+        self._control['muid_dynamic'] = value
+        
+    @property
+    def history(self):
+        try:
+            return self._control['body']['history']
+        except KeyError as e:
+            raise AttributeError('History not yet defined.') from e
+            
+    @history.setter
+    def history(self, value):
+        self._control['body']['history'] = value
+        
+    def pack(self, address_algo, cipher):
+        ''' Overwrite super() to support dynamic address generation.
+        Awkward, largely violates Don'tRepeatYourself, but quickest way
+        to work around SmartyParse's current limitations.
+        '''
+        # Normal
+        # First we need to check some things.
+        if self.history and self.dynamic_address:
+            # Accommodate SP
+            calculate_dynamic = False
+        # Normal
+        elif self.history or self.dynamic_address:
+            raise ValueError(
+                'History and dynamic address must both be defined, or '
+                'undefined. One cannot exist without the other.')
+        # In this case, we need to prepare to generate a dynamic address
+        else:
+            # Accommodate SP
+            calculate_dynamic = True
+            
+        # Normal
+        self.cipher = cipher
+        self._address_algo = address_algo
+        
+        # Accommodate SP
+        # This is really simple and is hard-coding a reliance on the order
+        # of signature and hash in relation to the rest of the formats.
+        # It's quick and dirty but effective and less prone to bugs than fancy
+        # things, especially with smartyparse not as reliable as I'd like.
+        sig_length = cipher_length_lookup[self.cipher]['sig']
+        sig_padding = bytes(sig_length)
+        self.signature = sig_padding
+        hash_length = self._addresser.ADDRESS_LENGTH
+        muid_padding = bytes(hash_length)
+        self.muid = Muid(self.address_algo, muid_padding)
+        
+        # Accommodate SP
+        if calculate_dynamic:
+            self.history = []
+            self.dynamic_address = Muid(self.address_algo, muid_padding)
+        
+        # Normal
+        packed = self.PARSER.pack(self._control)
+        
+        # Accommodate SP
+        final_size = len(packed)
+        sig_slice = slice(
+            final_size - sig_length,
+            None
+        )
+        hash_slice_static = slice(
+            sig_slice.start - hash_length,
+            sig_slice.start
+        )
+        calc_slice_static = slice(
+            0,
+            hash_slice_static.start
+        )
+        hash_slice_dynamic = slice(
+            # Don't forget the extra byte for the address algo denotation
+            hash_slice_static.start - 1 - hash_length,
+            hash_slice_static.start - 1
+        )
+        calc_slice_dynamic = slice(
+            0,
+            hash_slice_dynamic.start
+        )
+        self._sig_slice = sig_slice
+        
+        if calculate_dynamic:
+            address_dynamic = self._addresser.create(
+                bytes(packed[calc_slice_dynamic])
+            )
+            packed[hash_slice_dynamic] = address_dynamic
+            self.dynamic_address = Muid(self.address_algo, address_dynamic)
+        
+        # Hash the packed data, until the appropriate point, and then sign
+        # Conversion to bytes necessary for PyCryptoDome API
+        address = self._addresser.create(bytes(packed[calc_slice_static]))
+        packed[hash_slice_static] = address
+        self.muid = Muid(self.address_algo, address)
+        
+        # Normal-ish, courtesy of above
+        self._packed = packed
+        self.signature = None
+        
+    @classmethod
+    def unpack(cls, data):
+        ''' Performs raw unpacking with the smartyparser in self.PARSER.
+        '''
+        # Accommodate SP
+        offset_cache_static = []
+        offset_cacher_static = _generate_offset_cacher(
+            offset_cache_static, 
+            cls.PARSER['muid']
+        )
+        cls.PARSER['muid'].register_callback(
+            'preunpack', 
+            offset_cacher_static
+        )
+        
+        offset_cache_dynamic = []
+        offset_cacher_dynamic = _generate_offset_cacher(
+            offset_cache_dynamic, 
+            cls.PARSER['muid_dynamic']
+        )
+        cls.PARSER['muid_dynamic'].register_callback(
+            'preunpack', 
+            offset_cacher_dynamic
+        )
+        
+        # Normal
+        unpacked = cls.PARSER.unpack(data)
+        self = cls(_control=unpacked)
+        self._packed = memoryview(data)
+        
+        # Accommodate SP
+        address_offset_static = offset_cache_static.pop()
+        address_data_static = self._packed[:address_offset_static].tobytes()
+        
+        address_offset_dynamic = offset_cache_dynamic.pop()
+        address_data_dynamic = self._packed[:address_offset_dynamic].tobytes()
+        
+        # Verify the initial hash if history is undefined
+        if not self.history:
+            self._addresser.verify(
+                self.dynamic_address.address, 
+                address_data_dynamic
+            )
+        
+        # Normal-ish
+        self._addresser.verify(self.muid.address, address_data_static)
+        
+        # Don't forget this part.
+        return self
         
 
 class MDXX(_MuseObjectBase):

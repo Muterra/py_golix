@@ -43,6 +43,7 @@ from mupy import Muid
 from mupy._getlow import MEOC
 from mupy._getlow import MIDC
 from mupy._getlow import MOBS
+from mupy._getlow import MOBD
 
 from mupy.utils import _dummy_signature
 from mupy.utils import _dummy_mac
@@ -118,6 +119,38 @@ if __name__ == '__main__':
     mobs_2.pack_signature(_dummy_signature)
     mobs_2p = mobs_2.packed
     mobs_2r = MOBS.unpack(mobs_2p)
+    
+    # MOBD dummy address test.
+    mobd_1 = MOBD(
+        binder=_dummy_author, 
+        targets=[_dummy_muid, _dummy_muid]
+    )
+    mobd_1.pack(cipher=0, address_algo=0)
+    mobd_1.pack_signature(_dummy_signature)
+    mobd_1p = mobd_1.packed
+    mobd_1r = MOBD.unpack(mobd_1p)
+    
+    # MOBD actual address test.
+    mobd_2 = MOBD(
+        binder=_rls_author, 
+        targets=[_dummy_muid, _dummy_muid]
+    )
+    mobd_2.pack(cipher=0, address_algo=1)
+    mobd_2.pack_signature(_dummy_signature)
+    mobd_2p = mobd_2.packed
+    mobd_2r = MOBD.unpack(mobd_2p)
+    
+    # MOBD actual address test, with history
+    mobd_3 = MOBD(
+        binder=_rls_author, 
+        targets=[_dummy_muid, _dummy_muid],
+        dynamic_address=mobd_2.dynamic_address,
+        history=[mobd_2.muid]
+    )
+    mobd_3.pack(cipher=0, address_algo=1)
+    mobd_3.pack_signature(_dummy_signature)
+    mobd_3p = mobd_3.packed
+    mobd_3r = MOBD.unpack(mobd_3p)
     
     import IPython
     IPython.embed()

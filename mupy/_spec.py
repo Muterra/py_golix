@@ -271,19 +271,19 @@ _mobd['magic'] = ParseHelper(parsers.Literal(b'MOBD'))
 _mobd['version'] = ParseHelper(parsers.Int32(signed=False))
 _mobd['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _mobd['body'] = None
+_mobd['muid_dynamic'] = generate_muid_parser()
 _mobd['muid'] = generate_muid_parser()
 _mobd['signature'] = None
 
 _mobd_lookup = {}
-_mobd_lookup[13] = SmartyParser()
-_mobd_lookup[13]['binder'] = generate_muid_parser()
-_mobd_lookup[13]['history_length'] = ParseHelper(parsers.Int16(signed=False))
-_mobd_lookup[13]['history'] = _muidlist
-_mobd_lookup[13]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
-_mobd_lookup[13]['targets'] = _muidlist
-_mobd_lookup[13]['muid_dynamic'] = generate_muid_parser()
-_mobd_lookup[13].link_length('history', 'history_length')
-_mobd_lookup[13].link_length('targets', 'targets_length')
+_mobd_lookup[14] = SmartyParser()
+_mobd_lookup[14]['binder'] = generate_muid_parser()
+_mobd_lookup[14]['history_length'] = ParseHelper(parsers.Int16(signed=False))
+_mobd_lookup[14]['history'] = _muidlist
+_mobd_lookup[14]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
+_mobd_lookup[14]['targets'] = _muidlist
+_mobd_lookup[14].link_length('history', 'history_length')
+_mobd_lookup[14].link_length('targets', 'targets_length')
     
 _mobd['version'].register_callback('prepack', _gen_dispatch(_mobd, _mobd_lookup, 'body'))
 _mobd['version'].register_callback('postunpack', _gen_dispatch(_mobd, _mobd_lookup, 'body'))

@@ -42,6 +42,7 @@ from mupy import Muid
 # These are abnormal (don't use in production) inclusions.
 from mupy._getlow import MEOC
 from mupy._getlow import MIDC
+from mupy._getlow import MOBS
 
 from mupy.utils import _dummy_signature
 from mupy.utils import _dummy_mac
@@ -79,21 +80,44 @@ if __name__ == '__main__':
     midc_2p = midc_2.packed
     midc_2r = MIDC.unpack(midc_2p)
     
-    # MEOC dummy address test.
+    # Dummy payload and authors for MEOC objects
     _dummy_payload = b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
-    meoc_1 = MEOC(author=_dummy_muid, payload=_dummy_payload)
+    _dummy_author = midc_1.muid
+    _rls_author = midc_2.muid
+    
+    # MEOC dummy address test.
+    meoc_1 = MEOC(author=_dummy_author, payload=_dummy_payload)
     meoc_1.pack(cipher=0, address_algo=0)
     meoc_1.pack_signature(_dummy_signature)
     meoc_1p = meoc_1.packed
     meoc_1r = MEOC.unpack(meoc_1p)
     
     # MEOC actual address test.
-    _dummy_payload = b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
-    meoc_2 = MEOC(author=_dummy_muid, payload=_dummy_payload)
+    meoc_2 = MEOC(author=_rls_author, payload=_dummy_payload)
     meoc_2.pack(cipher=0, address_algo=1)
     meoc_2.pack_signature(_dummy_signature)
     meoc_2p = meoc_2.packed
     meoc_2r = MEOC.unpack(meoc_2p)
+    
+    # MOBS dummy address test.
+    mobs_1 = MOBS(
+        binder=_dummy_author, 
+        target=_dummy_muid
+    )
+    mobs_1.pack(cipher=0, address_algo=0)
+    mobs_1.pack_signature(_dummy_signature)
+    mobs_1p = mobs_1.packed
+    mobs_1r = MOBS.unpack(mobs_1p)
+    
+    # MOBS actual address test.
+    mobs_2 = MOBS(
+        binder=_rls_author, 
+        target=_dummy_muid
+    )
+    mobs_2.pack(cipher=0, address_algo=1)
+    mobs_2.pack_signature(_dummy_signature)
+    mobs_2p = mobs_2.packed
+    mobs_2r = MOBS.unpack(mobs_2p)
     
     import IPython
     IPython.embed()

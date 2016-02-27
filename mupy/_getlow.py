@@ -461,10 +461,39 @@ class MOBS(_MuseObjectBase):
     '''
     PARSER = _mobs
     
-    def __init__(self, binder, target, *args, **kwargs):
-        ''' Generates object and readies it for signing.
+    def __init__(self, binder=None, target=None, _control=None, *args, **kwargs):
+        ''' Generates MOBS object.
+        
+        Binder and target should be a utils.Muid object (or similar).
         '''
-        super().__init__(*args, **kwargs)
+        super().__init__(_control=_control, *args, **kwargs)
+        
+        # Don't overwrite anything we loaded from _control!
+        if not _control:
+            self.binder = binder
+            self.target = target
+        
+    @property
+    def binder(self):
+        try:
+            return self._control['body']['binder']
+        except KeyError as e:
+            raise AttributeError('Binder not yet defined.') from e
+            
+    @binder.setter
+    def binder(self, value):
+        self._control['body']['binder'] = value
+        
+    @property
+    def target(self):
+        try:
+            return self._control['body']['target']
+        except KeyError as e:
+            raise AttributeError('Target not yet defined.') from e
+            
+    @target.setter
+    def target(self, value):
+        self._control['body']['target'] = value
         
 
 class MOBD(_MuseObjectBase):
@@ -475,12 +504,44 @@ class MOBD(_MuseObjectBase):
     '''
     PARSER = _mobd
     
-    def __init__(self, binder, targets, history=None, dynamic_address=None, *args, **kwargs):
-        ''' Generates object and readies it for signing.
+    def __init__(self, 
+                binder=None, 
+                history=None, 
+                target=None, 
+                dynamic_address=None, 
+                _control=None, *args, **kwargs):
+        ''' Generates MOBS object.
         
-        Target must be list. History, if defined, must be list.
+        Binder and target should be a utils.Muid object (or similar).
         '''
-        super().__init__(*args, **kwargs)
+        super().__init__(_control=_control, *args, **kwargs)
+        
+        # Don't overwrite anything we loaded from _control!
+        if not _control:
+            self.binder = binder
+            self.target = target
+        
+    @property
+    def binder(self):
+        try:
+            return self._control['body']['binder']
+        except KeyError as e:
+            raise AttributeError('Binder not yet defined.') from e
+            
+    @binder.setter
+    def binder(self, value):
+        self._control['body']['binder'] = value
+        
+    @property
+    def target(self):
+        try:
+            return self._control['body']['target']
+        except KeyError as e:
+            raise AttributeError('Target not yet defined.') from e
+            
+    @target.setter
+    def target(self, value):
+        self._control['body']['target'] = value
         
 
 class MDXX(_MuseObjectBase):

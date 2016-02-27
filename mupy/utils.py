@@ -141,8 +141,6 @@ class _AddressAlgoBase(metaclass=abc.ABCMeta):
         ''' Creates an address (note: not the whole muid) from data.
         '''
         h = cls._HASH_ALGO.new(data)
-        # Give it the bytes
-        h.update(data)
         digest = bytes(h.digest())
         # So this isn't really making much of a difference, necessarily, but
         # it's good insurance against (accidental or malicious) length

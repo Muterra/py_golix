@@ -46,7 +46,12 @@ from mupy._getlow import MOBS
 from mupy._getlow import MOBD
 from mupy._getlow import MDXX
 from mupy._getlow import MEAR
+from mupy._getlow import AsymRequest
+from mupy._getlow import AsymAck
+from mupy._getlow import AsymNak
+from mupy._getlow import AsymElse
 
+from mupy.utils import Secret
 from mupy.utils import _dummy_signature
 from mupy.utils import _dummy_mac
 from mupy.utils import _dummy_asym
@@ -56,7 +61,7 @@ from mupy.utils import _dummy_muid
 
 # These are soon-to-be-removed abnormal imports
 from mupy._spec import _midc, _meoc, _mobs, _mobd, _mdxx, _mear
-from mupy._spec import _asym_pr, _asym_ak, _asym_nk, _asym_else
+from mupy._spec import _asym_rq, _asym_ak, _asym_nk, _asym_else
 
 # ###############################################
 # Testing
@@ -193,6 +198,19 @@ if __name__ == '__main__':
     mear_2.pack_signature(_dummy_mac)
     mear_2p = mear_2.packed
     mear_2r = MEAR.unpack(mear_2p)
+    
+    # Asym request testing
+    asrq_1 = AsymRequest(
+        author=_dummy_author,
+        target=_dummy_muid, 
+        secret=Secret(
+            cipher = 1,
+            key = b'[--Check out my sweet key, yo!-]',
+            seed = b'[And my seed...]'
+        ))
+    asrq_1.pack()
+    asrq_1p = asrq_1.packed
+    asrq_1r = AsymRequest.unpack(asrq_1p)
     
     import IPython
     IPython.embed()

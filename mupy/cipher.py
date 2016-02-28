@@ -332,12 +332,13 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def _generate_keys(self):
         pass
     
+    @classmethod
     @abc.abstractmethod
-    def _new_secret(self):
+    def _new_secret(cls, *args, **kwargs):
         ''' Placeholder method to create new symmetric secret. Returns
         a Secret().
         '''
-        pass
+        return Secret(cipher=cls._ciphersuite, *args, **kwargs)
         
     @abc.abstractmethod
     def _sign(self, data):
@@ -551,7 +552,7 @@ class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
     def _new_secret(cls):
         ''' Placeholder method to create new symmetric secret.
         '''
-        return Secret(key=b'', seed=None)
+        return super()._new_secret(key=bytes(32), seed=None)
         
     @classmethod
     def _sign(cls, *args, **kwargs):
@@ -861,7 +862,7 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
         '''
         key = get_random_bytes(32)
         nonce = get_random_bytes(16)
-        return Secret(key=key, seed=nonce)
+        return super()._new_secret(key=key, seed=nonce)
         
     def _sign(self, data):
         ''' Placeholder signing method.

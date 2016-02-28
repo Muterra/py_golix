@@ -41,7 +41,7 @@ from mupy import Muid
 
 # These are abnormal (don't use in production) inclusions
 from mupy._spec import _midc, _meoc, _mobs, _mobd, _mdxx, _mear
-from mupy._spec import _asym_pr, _asym_ak, _asym_nk, _asym_else
+from mupy._spec import _asym_rq, _asym_ak, _asym_nk, _asym_else
 from mupy.utils import _dummy_signature
 from mupy.utils import _dummy_mac
 from mupy.utils import _dummy_asym
@@ -155,20 +155,20 @@ if __name__ == '__main__':
     mear_1r = _mear.unpack(mear_1p)
     
     # Asymmetric payload blob tests.
-    asym_pr_1 = {
+    asym_rq_1 = {
         'author': _dummy_muid,
-        'id': b'PR',
+        'magic': b'RQ',
         'payload': {
             'target': _dummy_muid,
-            'key': bytes(32)
+            'secret': bytes(32)
         }
     }
-    asym_pr_1p = _asym_pr.pack(asym_pr_1)
-    asym_pr_1r = _asym_pr.unpack(asym_pr_1p)
+    asym_rq_1p = _asym_rq.pack(asym_rq_1)
+    asym_rq_1r = _asym_rq.unpack(asym_rq_1p)
     
     asym_ak_2 = {
         'author': _dummy_muid,
-        'id': b'AK',
+        'magic': b'AK',
         'payload': {
             'target': _dummy_muid,
             'status': 0
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     
     asym_nk_3 = {
         'author': _dummy_muid,
-        'id': b'NK',
+        'magic': b'NK',
         'payload': {
             'target': _dummy_muid,
             'status': 0
@@ -190,7 +190,7 @@ if __name__ == '__main__':
     
     asym_else_4 = {
         'author': _dummy_muid,
-        'id': b'\x00\x00',
+        'magic': b'\x00\x00',
         'payload': b'Hello world'
     }
     asym_else_4p = _asym_else.pack(asym_else_4)

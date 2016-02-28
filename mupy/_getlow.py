@@ -52,18 +52,19 @@ from ._spec import _mobs
 from ._spec import _mobd
 from ._spec import _mdxx
 from ._spec import _mear
-from ._spec import _asym_pr
+from ._spec import _asym_rq
 from ._spec import _asym_ak
 from ._spec import _asym_nk
 from ._spec import _asym_else
 
 # Accommodate SP
-from ._spec import cipher_length_lookup
+from .utils import cipher_length_lookup
 from .utils import hash_lookup
 
 # Normal
 from .utils import Muid
 from .utils import SecurityError
+from .utils import Secret
 
         
 # ###############################################
@@ -843,14 +844,113 @@ class MEAR(_MuseObjectBase):
         
 
 class _AsymBase():
-    pass
+    ''' AsymBase class should handle all of the parsing/building 
+    dispatch. From there, the subclasses handle object creation, roughly
+    equivalent to the object defs spat out by the smartyparsers.
+    '''
+    
+    def __init__(self, author=None, _control=None):
+        # If we're creating an object from an unpacked one, just load directly
+        if _control:
+            self._control = _control
+            
+        # Creating from scratch. Now we have some actual work to do.
+        else:            
+            # All checks passed, go ahead and load the 
+            self._control = {
+                # This gets the value of the literal from the parser
+                'author': author,
+                'magic': self.PARSER['magic'].parser.value,
+                'payload': None
+            }
+        
+    @property
+    def packed(self):
+        ''' Returns the packed object if and only if it has been packed
+        and signed.
+        '''
+        try:
+            return self._packed
+        except AttributeError as e:
+            raise RuntimeError('Object has not yet been packed.') from e
+        
+    @property
+    def author(self):
+        return self._control['author']
+        
+    @author.setter
+    def author(self, value):
+        self._control['author'] = value
+        
+    @property
+    def magic(self):
+        return self._control['magic']
+        
+    def pack(self):
+        ''' Performs raw packing using the smartyparser in self.PARSER.
+        '''
+        self._packed = self.PARSER.pack(self._control)
+        return self._packed
+        
+    @classmethod
+    def unpack(cls, data):
+        ''' Performs raw unpacking with the smartyparser in self.PARSER.
+        '''
+        unpacked = cls.PARSER.unpack(data)
+        print(unpacked)
+        self = cls(_control=unpacked)
+        self._packed = memoryview(data)
+        
+        return self
 
 
 class AsymRequest(_AsymBase):
     ''' Asymmetric pipe request. Used as payload in MEAR objects.
     '''
-    PARSER = _asym_pr
-
+    PARSER = _asym_rq
+    
+    def __init__(self, target=None, secret=None, _control=None, *args, **kwargs):
+        super().__init__(_control=_control, *args, **kwargs)
+        if _control is None:
+            self._control['payload'] = {}
+            self.target = target
+            self.secret = secret
+        
+    @property
+    def target(self):
+        try:
+            return self._control['payload']['target']
+        except KeyError as e:
+            raise AttributeError('Target not yet defined.') from e
+            
+    @target.setter
+    def target(self, value):
+        self._control['payload']['target'] = value
+            
+    @property
+    def secret(self):
+        return self._secret
+        
+    @secret.setter
+    def secret(self, value):
+        if value is not None and not isinstance(value, Secret):
+            raise TypeError('Can only assign secret as a Secret-like object.')
+        else:
+            self._secret = value
+            
+    def pack(self, *args, **kwargs):
+        self._control['payload']['target'] = self.target
+        self._control['payload']['secret'] = bytes(self.secret)
+        super().pack(*args, **kwargs)
+        
+    @classmethod
+    def unpack(cls, *args, **kwargs):
+        self = super().unpack(*args, **kwargs)
+        self._secret = Secret.from_bytes(self._control['payload']['secret'])
+        self._target = self._control['payload']['target']
+        
+        return self
+        
 
 class AsymAck(_AsymBase):
     ''' Asymmetric pipe acknowledgement. 
@@ -870,3 +970,11 @@ class AsymElse(_AsymBase):
     ''' Asymmetric arbitrary payload. Used as payload in MEAR objects.
     '''
     PARSER = _asym_else
+        
+    @property
+    def payload(self):
+        return self._control['payload']
+        
+    @payload.setter
+    def payload(self, value):
+        self._control['payload'] = value

@@ -41,6 +41,11 @@ from smartyparse import parsers
 from smartyparse import references
 
 from .utils import Muid
+
+from .utils import _gen_dispatch
+from .utils import _gen_body_update
+from .utils import _callback_multi
+
 from .utils import _dummy_asym
 from .utils import _dummy_mac
 from .utils import _dummy_signature
@@ -93,59 +98,7 @@ def generate_muid_parser():
     return muid_parser
 
 # ----------------------------------------------------------------------
-# Generalized object dispatcher
-
-def _gen_dispatch(header, lookup, key):
-    @references(header)
-    def _dispatch_obj(self, version, key=key):
-        try:
-            self[key] = lookup[version]
-        except KeyError:
-            raise parsers.ParseError('No matching version number available.')
-    return _dispatch_obj
-    
-# This should keep working even with the addition of new version numbers
-def _gen_body_update(header, lookup, key):
-    @references(header)
-    def _update_body(self, parsed, key=key):
-        try:
-            self['body'][key] = lookup[parsed]
-        except KeyError:
-            raise parsers.ParseError('No matching object body key available.')
-    return _update_body
-    
-def _callback_multi(*funcs):
-    def generated_callback(value):
-        for f in funcs:
-            f(value)
-    return generated_callback
-
-# ----------------------------------------------------------------------
-# Cipher length lookup block
-
-cipher_length_lookup = {
-    0: {
-        'key': 32,
-        'sig': 512,
-        'mac': 64,
-        'asym': 512,
-        'nonce': 16
-    },
-    1: {
-        'key': 32,
-        'sig': 512,
-        'mac': 64,
-        'asym': 512,
-        'nonce': 16
-    },
-    2: {
-        'key': 64,
-        'sig': 512,
-        'mac': 64,
-        'asym': 512,
-        'nonce': 0
-    }
-}
+# Crypto parsers definition block
 
 _signature_parsers = {}
 _signature_parsers[0] = ParseHelper(parsers.Literal(_dummy_signature, verify=False))
@@ -350,11 +303,11 @@ _mear.versions = set(_mear_lookup)
 # ----------------------------------------------------------------------
 # Asymmetric payload format blocks
 
-_asym_pr_payload = SmartyParser()
-_asym_pr_payload['target'] = generate_muid_parser()
-_asym_pr_payload['key_length'] = ParseHelper(parsers.Int8(signed=False))
-_asym_pr_payload['key'] = ParseHelper(parsers.Blob())
-_asym_pr_payload.link_length('key', 'key_length')
+_asym_rq_payload = SmartyParser()
+_asym_rq_payload['target'] = generate_muid_parser()
+_asym_rq_payload['secret_length'] = ParseHelper(parsers.Int8(signed=False))
+_asym_rq_payload['secret'] = ParseHelper(parsers.Blob())
+_asym_rq_payload.link_length('secret', 'secret_length')
 
 _asym_ak_payload = SmartyParser()
 _asym_ak_payload['target'] = generate_muid_parser()
@@ -364,30 +317,30 @@ _asym_nk_payload = SmartyParser()
 _asym_nk_payload['target'] = generate_muid_parser()
 _asym_nk_payload['status'] = ParseHelper(parsers.Int32(signed=False))
 
-_asym_pr = SmartyParser()
-_asym_pr['author'] = generate_muid_parser()
-_asym_pr['id'] = ParseHelper(parsers.Literal(b'PR'))
-_asym_pr['payload_length'] = ParseHelper(parsers.Int16(signed=False))
-_asym_pr['payload'] = _asym_pr_payload
-_asym_pr.link_length('payload', 'payload_length')
+_asym_rq = SmartyParser()
+_asym_rq['author'] = generate_muid_parser()
+_asym_rq['magic'] = ParseHelper(parsers.Literal(b'RQ'))
+_asym_rq['payload_length'] = ParseHelper(parsers.Int16(signed=False))
+_asym_rq['payload'] = _asym_rq_payload
+_asym_rq.link_length('payload', 'payload_length')
 
 _asym_ak = SmartyParser()
 _asym_ak['author'] = generate_muid_parser()
-_asym_ak['id'] = ParseHelper(parsers.Literal(b'AK'))
+_asym_ak['magic'] = ParseHelper(parsers.Literal(b'AK'))
 _asym_ak['payload_length'] = ParseHelper(parsers.Int16(signed=False))
 _asym_ak['payload'] = _asym_ak_payload
 _asym_ak.link_length('payload', 'payload_length')
 
 _asym_nk = SmartyParser()
 _asym_nk['author'] = generate_muid_parser()
-_asym_nk['id'] = ParseHelper(parsers.Literal(b'NK'))
+_asym_nk['magic'] = ParseHelper(parsers.Literal(b'NK'))
 _asym_nk['payload_length'] = ParseHelper(parsers.Int16(signed=False))
 _asym_nk['payload'] = _asym_nk_payload
 _asym_nk.link_length('payload', 'payload_length')
 
 _asym_else = SmartyParser()
 _asym_else['author'] = generate_muid_parser()
-_asym_else['id'] = ParseHelper(parsers.Literal(b'\x00\x00'))
+_asym_else['magic'] = ParseHelper(parsers.Literal(b'\x00\x00'))
 _asym_else['payload_length'] = ParseHelper(parsers.Int16(signed=False))
 _asym_else['payload'] = ParseHelper(parsers.Blob())
 _asym_else.link_length('payload', 'payload_length')

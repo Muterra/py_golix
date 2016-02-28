@@ -212,5 +212,34 @@ if __name__ == '__main__':
     asrq_1p = asrq_1.packed
     asrq_1r = AsymRequest.unpack(asrq_1p)
     
+    # Asym ack testing
+    asak_1 = AsymAck(
+        author=_dummy_author,
+        target=_dummy_muid, 
+        status=5
+    )
+    asak_1.pack()
+    asak_1p = asak_1.packed
+    asak_1r = AsymAck.unpack(asak_1p)
+    
+    # Asym ack testing
+    asnk_1 = AsymNak(
+        author=_dummy_author,
+        target=_dummy_muid, 
+        status=7
+    )
+    asnk_1.pack()
+    asnk_1p = asnk_1.packed
+    asnk_1r = AsymNak.unpack(asnk_1p)
+    
+    # Asym else testing
+    asel_1 = AsymElse(
+        author=_dummy_author,
+        payload=b'Hello world'
+    )
+    asel_1.pack()
+    asel_1p = asel_1.packed
+    asel_1r = AsymElse.unpack(asel_1p)
+    
     import IPython
     IPython.embed()

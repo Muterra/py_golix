@@ -956,11 +956,55 @@ class AsymAck(_AsymBase):
     Used as payload in MEAR objects.
     '''
     PARSER = _asym_ak
+    
+    def __init__(self, target=None, status=0, _control=None, *args, **kwargs):
+        super().__init__(_control=_control, *args, **kwargs)
+        if _control is None:
+            self._control['payload'] = {}
+            self.target = target
+            self.status = status
+        
+    @property
+    def target(self):
+        try:
+            return self._control['payload']['target']
+        except KeyError as e:
+            raise AttributeError('Target not yet defined.') from e
+            
+    @target.setter
+    def target(self, value):
+        self._control['payload']['target'] = value
+            
+    @property
+    def status(self):
+        return self._status
+        
+    @status.setter
+    def status(self, value):
+        # if value is not None and not isinstance(value, Secret):
+        #     raise TypeError('Can only assign secret as a Secret-like object.')
+        # else:
+        #     self._status = value
+        self._status = value
+            
+    def pack(self, *args, **kwargs):
+        self._control['payload']['target'] = self.target
+        self._control['payload']['status'] = self.status
+        super().pack(*args, **kwargs)
+        
+    @classmethod
+    def unpack(cls, *args, **kwargs):
+        self = super().unpack(*args, **kwargs)
+        self._status = self._control['payload']['status']
+        self._target = self._control['payload']['target']
+        
+        return self
 
 
-class AsymNak(_AsymBase):
+class AsymNak(AsymAck):
     ''' Asymmetric pipe non-acknowledgement. 
     Used as payload in MEAR objects.
+    Other than magic, identical to AsymAck.
     '''
     PARSER = _asym_nk
 
@@ -969,6 +1013,11 @@ class AsymElse(_AsymBase):
     ''' Asymmetric arbitrary payload. Used as payload in MEAR objects.
     '''
     PARSER = _asym_else
+    
+    def __init__(self, payload=None, _control=None, *args, **kwargs):
+        super().__init__(_control=_control, *args, **kwargs)
+        if _control is None:
+            self.payload = payload
         
     @property
     def payload(self):

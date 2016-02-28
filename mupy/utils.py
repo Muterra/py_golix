@@ -134,6 +134,14 @@ class Muid():
                 'Cannot compare Muid objects to non-Muid-like objects.'
             ) from e
             
+    def __repr__(self):
+        c = type(self).__name__
+        return (
+            c + 
+            '(algo=' + repr(self.algo) + ', '
+            'address=' + repr(self.address) + ')'
+        )
+            
     @property
     def address(self):
         if self.algo == 0:
@@ -265,6 +273,16 @@ class Secret():
             'key': self.key, 
             'seed': self.seed
         }
+            
+    def __repr__(self):
+        c = type(self).__name__
+        return (
+            c + 
+            '(cipher=' + repr(self.cipher) + ', '
+            'key=' + repr(self.key) + ', '
+            'seed=' + repr(self.seed) + ', '
+            'version=' + repr(self.version) + ')'
+        )
 
 
 # ----------------------------------------------------------------------

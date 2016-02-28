@@ -897,7 +897,6 @@ class _AsymBase():
         ''' Performs raw unpacking with the smartyparser in self.PARSER.
         '''
         unpacked = cls.PARSER.unpack(data)
-        print(unpacked)
         self = cls(_control=unpacked)
         self._packed = memoryview(data)
         

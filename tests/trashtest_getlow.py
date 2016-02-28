@@ -44,6 +44,7 @@ from mupy._getlow import MEOC
 from mupy._getlow import MIDC
 from mupy._getlow import MOBS
 from mupy._getlow import MOBD
+from mupy._getlow import MDXX
 
 from mupy.utils import _dummy_signature
 from mupy.utils import _dummy_mac
@@ -151,6 +152,26 @@ if __name__ == '__main__':
     mobd_3.pack_signature(_dummy_signature)
     mobd_3p = mobd_3.packed
     mobd_3r = MOBD.unpack(mobd_3p)
+    
+    # MDXX dummy address test.
+    mdxx_1 = MDXX(
+        debinder=_dummy_author, 
+        targets=[_dummy_muid]
+    )
+    mdxx_1.pack(cipher=0, address_algo=0)
+    mdxx_1.pack_signature(_dummy_signature)
+    mdxx_1p = mdxx_1.packed
+    mdxx_1r = MDXX.unpack(mdxx_1p)
+    
+    # MDXX actual address test.
+    mdxx_2 = MDXX(
+        debinder=_rls_author, 
+        targets=[_dummy_muid]
+    )
+    mdxx_2.pack(cipher=0, address_algo=1)
+    mdxx_2.pack_signature(_dummy_signature)
+    mdxx_2p = mdxx_2.packed
+    mdxx_2r = MDXX.unpack(mdxx_2p)
     
     import IPython
     IPython.embed()

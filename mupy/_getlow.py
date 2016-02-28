@@ -728,12 +728,39 @@ class MDXX(_MuseObjectBase):
     '''
     PARSER = _mdxx
     
-    def __init__(self, debinder, targets, *args, **kwargs):
-        ''' Generates object and readies it for signing.
+    def __init__(self, debinder=None, targets=None, _control=None, *args, **kwargs):
+        ''' Generates MDXX object.
         
-        Target must be list.
+        Binder and target should be a utils.Muid object (or similar).
         '''
-        super().__init__(*args, **kwargs)
+        super().__init__(_control=_control, *args, **kwargs)
+        
+        # Don't overwrite anything we loaded from _control!
+        if not _control:
+            self.debinder = debinder
+            self.targets = targets
+        
+    @property
+    def debinder(self):
+        try:
+            return self._control['body']['debinder']
+        except KeyError as e:
+            raise AttributeError('Debinder not yet defined.') from e
+            
+    @debinder.setter
+    def debinder(self, value):
+        self._control['body']['debinder'] = value
+        
+    @property
+    def targets(self):
+        try:
+            return self._control['body']['targets']
+        except KeyError as e:
+            raise AttributeError('Targets not yet defined.') from e
+            
+    @targets.setter
+    def targets(self, value):
+        self._control['body']['targets'] = value
         
 
 class MEAR(_MuseObjectBase):
@@ -743,6 +770,10 @@ class MEAR(_MuseObjectBase):
     perform state management.
     '''
     PARSER = _mear
+        
+    def _get_sig_length(self):
+        # Accommodate SP
+        raise NotImplementedError('Define sig length silly!')
     
     def __init__(self, recipient, author, payload_id, payload, *args, **kwargs):
         ''' Generates object and readies it for signing.
@@ -762,18 +793,5 @@ def _attempt_asym_unpack(data):
     # This means unsuccessful iteration through all parsers
     else:
         raise parsers.ParseError('Improperly formed asymmetric payload.')
-    return result
-
-
-def unpack_any(data):
-    for fmt in (MEOC, MOBS, MOBD, MDXX, MEAR):
-        try:
-            result = fmt.unpack(data)
-            break
-        except parsers.ParseError:
-            pass
-    # This means unsuccessful iteration through all parsers
-    else:
-        raise parsers.ParseError('Data does not appear to be a Muse object.')
     return result
         

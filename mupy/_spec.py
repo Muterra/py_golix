@@ -305,11 +305,11 @@ _mdxx['muid'] = generate_muid_parser()
 _mdxx['signature'] = None
 
 _mdxx_lookup = {}
-_mdxx_lookup[7] = SmartyParser()
-_mdxx_lookup[7]['debinder'] = generate_muid_parser()
-_mdxx_lookup[7]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
-_mdxx_lookup[7]['targets'] = _muidlist
-_mdxx_lookup[7].link_length('targets', 'targets_length')
+_mdxx_lookup[8] = SmartyParser()
+_mdxx_lookup[8]['debinder'] = generate_muid_parser()
+_mdxx_lookup[8]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
+_mdxx_lookup[8]['targets'] = _muidlist
+_mdxx_lookup[8].link_length('targets', 'targets_length')
     
 _mdxx['version'].register_callback('prepack', _gen_dispatch(_mdxx, _mdxx_lookup, 'body'))
 _mdxx['version'].register_callback('postunpack', _gen_dispatch(_mdxx, _mdxx_lookup, 'body'))

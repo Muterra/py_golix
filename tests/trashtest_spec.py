@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # MDXX test parsers
     mdxx_1 = {
         'magic': b'MDXX',
-        'version': 7,
+        'version': 8,
         'cipher': 0,
         'body': {
             'debinder': _dummy_muid,

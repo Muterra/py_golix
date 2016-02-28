@@ -4,7 +4,7 @@ Scratchpad for test-based development. Unit tests for _spec.py.
 LICENSING
 -------------------------------------------------
 
-mupy: A python library for Muse object manipulation.
+golix: A python library for Golix protocol object manipulation.
     Copyright (C) 2016 Muterra, Inc.
     
     Contributors
@@ -37,27 +37,27 @@ import sys
 import collections
 
 # These are normal inclusions
-from mupy import Muid
+from golix import Guid
 
 # These are abnormal (don't use in production) inclusions
-from mupy._spec import _midc, _meoc, _mobs, _mobd, _mdxx, _mear
-from mupy._spec import _asym_rq, _asym_ak, _asym_nk, _asym_else
-from mupy.utils import _dummy_signature
-from mupy.utils import _dummy_mac
-from mupy.utils import _dummy_asym
-from mupy.utils import _dummy_address
-from mupy.utils import _dummy_pubkey
+from golix._spec import _gidc, _geoc, _gobs, _gobd, _gdxx, _garq
+from golix._spec import _asym_rq, _asym_ak, _asym_nk, _asym_else
+from golix.utils import _dummy_signature
+from golix.utils import _dummy_mac
+from golix.utils import _dummy_asym
+from golix.utils import _dummy_address
+from golix.utils import _dummy_pubkey
 
 # ###############################################
 # Testing
 # ###############################################
 
-_dummy_muid = Muid(0, _dummy_address)
-                
-if __name__ == '__main__':
-    # MIDC test parsers
-    midc_1 = {
-        'magic': b'MIDC',
+_dummy_guid = Guid(0, _dummy_address)
+    
+def run():
+    # GIDC test parsers
+    gidc_1 = {
+        'magic': b'GIDC',
         'version': 2,
         'cipher': 0,
         'body': {
@@ -65,101 +65,101 @@ if __name__ == '__main__':
             'encryption_key': _dummy_pubkey,
             'exchange_key': _dummy_pubkey,
         },
-        'muid': _dummy_muid,
+        'guid': _dummy_guid,
         'signature': None
     }
     
-    midc_1p = _midc.pack(midc_1)
-    midc_1r = _midc.unpack(midc_1p)
+    gidc_1p = _gidc.pack(gidc_1)
+    gidc_1r = _gidc.unpack(gidc_1p)
     
-    # MEOC test parsers
-    meoc_1 = {
-        'magic': b'MEOC',
+    # GEOC test parsers
+    geoc_1 = {
+        'magic': b'GEOC',
         'version': 14,
         'cipher': 0,
         'body': {
-            'author': _dummy_muid,
+            'author': _dummy_guid,
             'payload': b'Hello world',
         },
-        'muid': _dummy_muid,
+        'guid': _dummy_guid,
         'signature': _dummy_signature
     }
     
-    meoc_1p = _meoc.pack(meoc_1)
-    meoc_1r = _meoc.unpack(meoc_1p)
+    geoc_1p = _geoc.pack(geoc_1)
+    geoc_1r = _geoc.unpack(geoc_1p)
     
-    # MOBS test parsers
-    mobs_1 = {
-        'magic': b'MOBS',
+    # GOBS test parsers
+    gobs_1 = {
+        'magic': b'GOBS',
         'version': 6,
         'cipher': 0,
         'body': {
-            'binder': _dummy_muid,
-            'target': _dummy_muid,
+            'binder': _dummy_guid,
+            'target': _dummy_guid,
         },
-        'muid': _dummy_muid,
+        'guid': _dummy_guid,
         'signature': _dummy_signature
     }
     
-    mobs_1p = _mobs.pack(mobs_1)
-    mobs_1r = _mobs.unpack(mobs_1p)
+    gobs_1p = _gobs.pack(gobs_1)
+    gobs_1r = _gobs.unpack(gobs_1p)
     
-    # MOBD test parsers
-    mobd_1 = {
-        'magic': b'MOBD',
+    # GOBD test parsers
+    gobd_1 = {
+        'magic': b'GOBD',
         'version': 14,
         'cipher': 0,
         'body': {
-            'binder': _dummy_muid,
+            'binder': _dummy_guid,
             'history': [],
-            'targets': [_dummy_muid, _dummy_muid],
+            'targets': [_dummy_guid, _dummy_guid],
         },
-        'muid_dynamic': _dummy_muid,
-        'muid': _dummy_muid,
+        'guid_dynamic': _dummy_guid,
+        'guid': _dummy_guid,
         'signature': _dummy_signature
     }
     
-    mobd_1p = _mobd.pack(mobd_1)
-    mobd_1r = _mobd.unpack(mobd_1p)
+    gobd_1p = _gobd.pack(gobd_1)
+    gobd_1r = _gobd.unpack(gobd_1p)
     
-    # MDXX test parsers
-    mdxx_1 = {
-        'magic': b'MDXX',
+    # GDXX test parsers
+    gdxx_1 = {
+        'magic': b'GDXX',
         'version': 8,
         'cipher': 0,
         'body': {
-            'debinder': _dummy_muid,
-            'targets': [_dummy_muid, _dummy_muid],
+            'debinder': _dummy_guid,
+            'targets': [_dummy_guid, _dummy_guid],
         },
-        'muid': _dummy_muid,
+        'guid': _dummy_guid,
         'signature': _dummy_signature
     }
     
-    mdxx_1p = _mdxx.pack(mdxx_1)
-    mdxx_1r = _mdxx.unpack(mdxx_1p)
+    gdxx_1p = _gdxx.pack(gdxx_1)
+    gdxx_1r = _gdxx.unpack(gdxx_1p)
     
     # MEPR test parsers
-    mear_1 = {
-        'magic': b'MEAR',
+    garq_1 = {
+        'magic': b'GARQ',
         'version': 12,
         'cipher': 0,
         'body': {
-            'recipient': _dummy_muid,
+            'recipient': _dummy_guid,
             'payload': _dummy_asym,
         },
-        'muid': _dummy_muid,
+        'guid': _dummy_guid,
         'signature': _dummy_mac
     }
     
-    mear_1p = _mear.pack(mear_1)
-    mear_1r = _mear.unpack(mear_1p)
+    garq_1p = _garq.pack(garq_1)
+    garq_1r = _garq.unpack(garq_1p)
     
     # Asymmetric payload blob tests.
     asym_rq_1 = {
-        'author': _dummy_muid,
+        'author': _dummy_guid,
         'magic': b'RQ',
         'payload': {
-            'target': _dummy_muid,
+            'target': _dummy_guid,
             'secret': bytes(32)
         }
     }
@@ -167,10 +167,10 @@ if __name__ == '__main__':
     asym_rq_1r = _asym_rq.unpack(asym_rq_1p)
     
     asym_ak_2 = {
-        'author': _dummy_muid,
+        'author': _dummy_guid,
         'magic': b'AK',
         'payload': {
-            'target': _dummy_muid,
+            'target': _dummy_guid,
             'status': 0
         }
     }
@@ -178,10 +178,10 @@ if __name__ == '__main__':
     asym_ak_2r = _asym_ak.unpack(asym_ak_2p)
     
     asym_nk_3 = {
-        'author': _dummy_muid,
+        'author': _dummy_guid,
         'magic': b'NK',
         'payload': {
-            'target': _dummy_muid,
+            'target': _dummy_guid,
             'status': 0
         }
     }
@@ -189,12 +189,15 @@ if __name__ == '__main__':
     asym_nk_3r = _asym_nk.unpack(asym_nk_3p)
     
     asym_else_4 = {
-        'author': _dummy_muid,
+        'author': _dummy_guid,
         'magic': b'\x00\x00',
         'payload': b'Hello world'
     }
     asym_else_4p = _asym_else.pack(asym_else_4)
     asym_else_4r = _asym_else.unpack(asym_else_4p)
     
-    import IPython
-    IPython.embed()
+    # import IPython
+    # IPython.embed()
+                
+if __name__ == '__main__':
+    run()

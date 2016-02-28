@@ -5,7 +5,7 @@ circular imports.
 LICENSING
 -------------------------------------------------
 
-mupy: A python library for Muse object manipulation.
+golix: A python library for Golix protocol object manipulation.
     Copyright (C) 2016 Muterra, Inc.
     
     Contributors
@@ -105,8 +105,8 @@ class SecurityError(RuntimeError):
     pass
 
 
-class Muid():
-    ''' Extremely lightweight class for MUIDs. Implements __hash__ to 
+class Guid():
+    ''' Extremely lightweight class for GUIDs. Implements __hash__ to 
     allow it to be used as a dictionary key.
     '''
     __slots__ = ['algo', '_address']
@@ -131,7 +131,7 @@ class Muid():
             return (self.algo == other.algo and self.address == other.address)
         except AttributeError as e:
             raise TypeError(
-                'Cannot compare Muid objects to non-Muid-like objects.'
+                'Cannot compare Guid objects to non-Guid-like objects.'
             ) from e
             
     def __repr__(self):
@@ -289,7 +289,7 @@ class Secret():
 # Mock objects for zeroth hash/ciphersuites
 
 _dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
-_dummy_muid = Muid(0, _dummy_address)
+_dummy_guid = Guid(0, _dummy_address)
 _dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
 _dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
 _dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
@@ -301,7 +301,7 @@ _dummy_pubkey = b'[ ' + (b'-') * 21 + b' MOCK PUBLIC KEY ' + (b'-') * 22 + b' ]'
 class _AddressAlgoBase(metaclass=abc.ABCMeta):
     @classmethod
     def create(cls, data):
-        ''' Creates an address (note: not the whole muid) from data.
+        ''' Creates an address (note: not the whole guid) from data.
         '''
         h = cls._HASH_ALGO.new(data)
         digest = bytes(h.digest())
@@ -313,7 +313,7 @@ class _AddressAlgoBase(metaclass=abc.ABCMeta):
         
     @classmethod
     def verify(cls, address, data):
-        ''' Verifies an address (note: not the whole muid) from data.
+        ''' Verifies an address (note: not the whole guid) from data.
         '''
         test = cls.create(data)
         if test != address:

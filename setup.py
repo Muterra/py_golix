@@ -1,7 +1,7 @@
-''' Mupy: A python library for Muse object manipulation.
+''' Golix: A python library for Golix object manipulation.
 
-MUse PYthon: a python library for Muse object manipulation. Create and 
-read encrypted Muse file objects.
+Golix: a python library for Golix object manipulation. Create and 
+read encrypted Golix file objects.
 '''
 import sys
 
@@ -13,8 +13,8 @@ from os import path
 
 here = path.abspath(path.dirname(__file__))
 
-long_description = '''Mupy is a python library for Muse object manipulation. Create,
-read, validate, and otherwise manipulate cryptographic Muse objects 
+long_description = '''Golix is a python library for Golix object manipulation. Create,
+read, validate, and otherwise manipulate cryptographic Golix objects 
 without worrying about the bits and bytes.'''
 # If we're installing, don't bother building the long_description
 # Ewwww, this is dirty.
@@ -24,18 +24,18 @@ if sys.argv[1] == 'sdist':
     long_description = pypandoc.convert('README.md', 'rst')
 
 setup(
-    name='mupy',
+    name='golix',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.1a1',
 
-    description='A python library for Muse object manipulation.',
+    description='A python library for Golix object manipulation.',
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/Muterra/py_muse',
+    url='https://github.com/Muterra/py_golix',
 
     # Author details
     author='Muterra, Inc',
@@ -69,7 +69,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='muse, encryption, security, privacy, private, identity, sharing',
+    keywords='golix, encryption, security, privacy, private, identity, sharing',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().

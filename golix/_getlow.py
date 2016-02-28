@@ -1,10 +1,10 @@
 '''
-Low-level Muse network objects. Not intended for general usage.
+Low-level Golix network objects. Not intended for general usage.
 
 LICENSING
 -------------------------------------------------
 
-mupy: A python library for Muse object manipulation.
+golix: A python library for Golix protocol object manipulation.
     Copyright (C) 2016 Muterra, Inc.
     
     Contributors
@@ -34,7 +34,7 @@ mupy: A python library for Muse object manipulation.
 '''
 
 # Control * imports
-__all__ = ['MEOC', 'MOBS', 'MOBD', 'MDXX', 'MEAR']
+__all__ = ['GIDC', 'GEOC', 'GOBS', 'GOBD', 'GDXX', 'GARQ']
 
 # Global dependencies
 import abc
@@ -46,12 +46,12 @@ import struct
 import os
 from warnings import warn
 
-from ._spec import _midc
-from ._spec import _meoc
-from ._spec import _mobs
-from ._spec import _mobd
-from ._spec import _mdxx
-from ._spec import _mear
+from ._spec import _gidc
+from ._spec import _geoc
+from ._spec import _gobs
+from ._spec import _gobd
+from ._spec import _gdxx
+from ._spec import _garq
 from ._spec import _asym_rq
 from ._spec import _asym_ak
 from ._spec import _asym_nk
@@ -62,7 +62,7 @@ from .utils import cipher_length_lookup
 from .utils import hash_lookup
 
 # Normal
-from .utils import Muid
+from .utils import Guid
 from .utils import SecurityError
 from .utils import Secret
 
@@ -93,28 +93,28 @@ from .utils import Secret
 # Strategy for gratuitous duck-punching: 
 # 1. Declare a mutable caching object: []
 # 2. Generate a caching callback on the fly, referencing that object
-# 3. Register that callback on the fly as postpack on muid, with modify=False
-# 4. That callback appends the muid's offset to the cache object
+# 3. Register that callback on the fly as postpack on guid, with modify=False
+# 4. That callback appends the guid's offset to the cache object
 # 5. Register a second callback on the entire _control
 # 6. That callback uses the offset to rewrite the hash with an actual hash
 # 7. Rewrite signature using the length of the hash and the cached hash offset
 
 # For other places this affects, search for "# Accommodate SP"
         
-# This gets called postpack with modify=True on ['muid'], referencing
+# This gets called postpack with modify=True on ['guid'], referencing
 # the _control object.
-def _generate_offset_cacher(cache, muid_parser):
+def _generate_offset_cacher(cache, guid_parser):
     # Relies upon late-binding closures to access the correct offset
     def offset_cacher(*args, **kwargs):
-        start = muid_parser.offset + 1
+        start = guid_parser.offset + 1
         cache.append(start)
     return offset_cacher
 
-def _generate_muid_rewriter(parent_smartyparser, addresser):
-    def muid_rewriter(muid):
-        size = parent_smartyparser['muid'].length
-        section = slice(len(muid) - size, None)
-        muid[section] = addresser.create()
+def _generate_guid_rewriter(parent_smartyparser, addresser):
+    def guid_rewriter(guid):
+        size = parent_smartyparser['guid'].length
+        section = slice(len(guid) - size, None)
+        guid[section] = addresser.create()
 
 
 # ###############################################
@@ -136,12 +136,12 @@ def _attempt_asym_unpack(data):
 
 
 # ###############################################
-# Low-level Muse object interfaces
+# Low-level Golix object interfaces
 # ###############################################
     
 
-class _MuseObjectBase(metaclass=abc.ABCMeta):
-    ''' Muse object bases should handle all of the parsing/building 
+class _GolixObjectBase(metaclass=abc.ABCMeta):
+    ''' Golix object bases should handle all of the parsing/building 
     dispatch. From there, the subclasses handle object creation, roughly
     equivalent to the object defs spat out by the smartyparsers.
     
@@ -172,7 +172,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
                 'version': version,
                 'cipher': None,
                 'body': {},
-                'muid': None,
+                'guid': None,
                 'signature': None
             }
             
@@ -204,12 +204,12 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         self._control['signature'] = value
         
     @property
-    def muid(self):
-        return self._control['muid']
+    def guid(self):
+        return self._control['guid']
         
-    @muid.setter
-    def muid(self, value):
-        self._control['muid'] = value
+    @guid.setter
+    def guid(self, value):
+        self._control['guid'] = value
         
     @property
     def version(self):
@@ -236,8 +236,8 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         
     @property
     def address_algo(self):
-        if self.muid is not None:
-            return self.muid.algo
+        if self.guid is not None:
+            return self.guid.algo
         elif self._address_algo != None:
             return self._address_algo
         else:
@@ -245,8 +245,8 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
     
     def _get_sig_length(self):
         ''' Quick and dirty way to get the object's signature length; 
-        easily overwritten when it's not the cipher defined (eg: midc, 
-        mear).
+        easily overwritten when it's not the cipher defined (eg: gidc, 
+        garq).
         
         # Accommodate SP on the whole damn thing currently.
         '''
@@ -254,7 +254,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         
     def pack(self, address_algo, cipher):
         ''' Performs raw packing using the smartyparser in self.PARSER.
-        Generates a MUID as well.
+        Generates a GUID as well.
         '''
         # Normal
         self.cipher = cipher
@@ -269,8 +269,8 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         sig_padding = bytes(sig_length)
         self.signature = sig_padding
         hash_length = self._addresser.ADDRESS_LENGTH
-        muid_padding = bytes(hash_length)
-        self.muid = Muid(self.address_algo, muid_padding)
+        guid_padding = bytes(hash_length)
+        self.guid = Guid(self.address_algo, guid_padding)
         
         # Normal
         packed = self.PARSER.pack(self._control)
@@ -295,7 +295,7 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         # Conversion to bytes necessary for PyCryptoDome API
         address = self._addresser.create(bytes(packed[calc_slice]))
         packed[hash_slice] = address
-        self.muid = Muid(self.address_algo, address)
+        self.guid = Guid(self.address_algo, address)
         
         # Normal-ish, courtesy of above
         self._packed = packed
@@ -317,8 +317,8 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         '''
         # Accommodate SP
         offset_cache = []
-        offset_cacher = _generate_offset_cacher(offset_cache, cls.PARSER['muid'])
-        cls.PARSER['muid'].register_callback('preunpack', offset_cacher)
+        offset_cacher = _generate_offset_cacher(offset_cache, cls.PARSER['guid'])
+        cls.PARSER['guid'].register_callback('preunpack', offset_cacher)
         
         # Normal
         unpacked = cls.PARSER.unpack(data)
@@ -330,25 +330,25 @@ class _MuseObjectBase(metaclass=abc.ABCMeta):
         address_data = self._packed[:address_offset].tobytes()
         
         # Normal-ish
-        self._addresser.verify(self.muid.address, address_data)
+        self._addresser.verify(self.guid.address, address_data)
         
         # Don't forget this part.
         return self
        
 
-class MIDC(_MuseObjectBase):
-    ''' Muse identity container.
+class GIDC(_GolixObjectBase):
+    ''' Golix identity container.
     
     Low level object. In most cases, you don't want this.
     '''
-    PARSER = _midc
+    PARSER = _gidc
     
     def __init__(self, 
                 signature_key=None, 
                 encryption_key=None, 
                 exchange_key=None, 
                 _control=None, *args, **kwargs):
-        ''' Generates MIDC object. Keys must be suitable for the 
+        ''' Generates GIDC object. Keys must be suitable for the 
         declared ciphersuite.
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -417,19 +417,19 @@ class MIDC(_MuseObjectBase):
         return 0
        
 
-class MEOC(_MuseObjectBase):
-    ''' Muse encrypted object container.
+class GEOC(_GolixObjectBase):
+    ''' Golix encrypted object container.
     
     Low level object. In most cases, you don't want this. Does not
     perform state management; simply transitions between encrypted bytes
     and unencrypted bytes.
     '''
-    PARSER = _meoc
+    PARSER = _geoc
     
     def __init__(self, author=None, payload=None, _control=None, *args, **kwargs):
-        ''' Generates MEOC object.
+        ''' Generates GEOC object.
         
-        Author should be a utils.Muid object (or similar).
+        Author should be a utils.Guid object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
@@ -469,18 +469,18 @@ class MEOC(_MuseObjectBase):
         self._control['body']['author'] = value
         
 
-class MOBS(_MuseObjectBase):
-    ''' Muse object binding, static.
+class GOBS(_GolixObjectBase):
+    ''' Golix object binding, static.
     
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    PARSER = _mobs
+    PARSER = _gobs
     
     def __init__(self, binder=None, target=None, _control=None, *args, **kwargs):
-        ''' Generates MOBS object.
+        ''' Generates GOBS object.
         
-        Binder and target should be a utils.Muid object (or similar).
+        Binder and target should be a utils.Guid object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
@@ -512,13 +512,13 @@ class MOBS(_MuseObjectBase):
         self._control['body']['target'] = value
         
 
-class MOBD(_MuseObjectBase):
-    ''' Muse object binding, dynamic.
+class GOBD(_GolixObjectBase):
+    ''' Golix object binding, dynamic.
     
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    PARSER = _mobd
+    PARSER = _gobd
     
     def __init__(self, 
                 binder=None, 
@@ -526,9 +526,9 @@ class MOBD(_MuseObjectBase):
                 targets=None, 
                 dynamic_address=None, 
                 _control=None, *args, **kwargs):
-        ''' Generates MOBS object.
+        ''' Generates GOBS object.
         
-        Binder, targets, and dynamic_address should be a utils.Muid 
+        Binder, targets, and dynamic_address should be a utils.Guid 
         object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -565,13 +565,13 @@ class MOBD(_MuseObjectBase):
     @property
     def dynamic_address(self):
         try:
-            return self._control['muid_dynamic']
+            return self._control['guid_dynamic']
         except KeyError as e:
             raise AttributeError('Dynamic address not yet defined.') from e
             
     @dynamic_address.setter
     def dynamic_address(self, value):
-        self._control['muid_dynamic'] = value
+        self._control['guid_dynamic'] = value
         
     @property
     def history(self):
@@ -617,13 +617,13 @@ class MOBD(_MuseObjectBase):
         sig_padding = bytes(sig_length)
         self.signature = sig_padding
         hash_length = self._addresser.ADDRESS_LENGTH
-        muid_padding = bytes(hash_length)
-        self.muid = Muid(self.address_algo, muid_padding)
+        guid_padding = bytes(hash_length)
+        self.guid = Guid(self.address_algo, guid_padding)
         
         # Accommodate SP
         if calculate_dynamic:
             self.history = []
-            self.dynamic_address = Muid(self.address_algo, muid_padding)
+            self.dynamic_address = Guid(self.address_algo, guid_padding)
         
         # Normal
         packed = self.PARSER.pack(self._control)
@@ -658,13 +658,13 @@ class MOBD(_MuseObjectBase):
                 bytes(packed[calc_slice_dynamic])
             )
             packed[hash_slice_dynamic] = address_dynamic
-            self.dynamic_address = Muid(self.address_algo, address_dynamic)
+            self.dynamic_address = Guid(self.address_algo, address_dynamic)
         
         # Hash the packed data, until the appropriate point, and then sign
         # Conversion to bytes necessary for PyCryptoDome API
         address = self._addresser.create(bytes(packed[calc_slice_static]))
         packed[hash_slice_static] = address
-        self.muid = Muid(self.address_algo, address)
+        self.guid = Guid(self.address_algo, address)
         
         # Normal-ish, courtesy of above
         self._packed = packed
@@ -678,9 +678,9 @@ class MOBD(_MuseObjectBase):
         offset_cache_static = []
         offset_cacher_static = _generate_offset_cacher(
             offset_cache_static, 
-            cls.PARSER['muid']
+            cls.PARSER['guid']
         )
-        cls.PARSER['muid'].register_callback(
+        cls.PARSER['guid'].register_callback(
             'preunpack', 
             offset_cacher_static
         )
@@ -688,9 +688,9 @@ class MOBD(_MuseObjectBase):
         offset_cache_dynamic = []
         offset_cacher_dynamic = _generate_offset_cacher(
             offset_cache_dynamic, 
-            cls.PARSER['muid_dynamic']
+            cls.PARSER['guid_dynamic']
         )
-        cls.PARSER['muid_dynamic'].register_callback(
+        cls.PARSER['guid_dynamic'].register_callback(
             'preunpack', 
             offset_cacher_dynamic
         )
@@ -715,24 +715,24 @@ class MOBD(_MuseObjectBase):
             )
         
         # Normal-ish
-        self._addresser.verify(self.muid.address, address_data_static)
+        self._addresser.verify(self.guid.address, address_data_static)
         
         # Don't forget this part.
         return self
         
 
-class MDXX(_MuseObjectBase):
-    ''' Muse object debinding.
+class GDXX(_GolixObjectBase):
+    ''' Golix object debinding.
     
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    PARSER = _mdxx
+    PARSER = _gdxx
     
     def __init__(self, debinder=None, targets=None, _control=None, *args, **kwargs):
-        ''' Generates MDXX object.
+        ''' Generates GDXX object.
         
-        Binder and target should be a utils.Muid object (or similar).
+        Binder and target should be a utils.Guid object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
@@ -764,18 +764,18 @@ class MDXX(_MuseObjectBase):
         self._control['body']['targets'] = value
         
 
-class MEAR(_MuseObjectBase):
-    ''' Muse encrypted asymmetric request.
+class GARQ(_GolixObjectBase):
+    ''' Golix encrypted asymmetric request.
     
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
-    PARSER = _mear
+    PARSER = _garq
     
     def __init__(self, recipient=None, payload=None, _control=None, *args, **kwargs):
-        ''' Generates MEAR object.
+        ''' Generates GARQ object.
         
-        Recipient must be a utils.Muid object (or similar). 
+        Recipient must be a utils.Guid object (or similar). 
         Payload must be bytes-like.
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -904,7 +904,7 @@ class _AsymBase():
 
 
 class AsymRequest(_AsymBase):
-    ''' Asymmetric pipe request. Used as payload in MEAR objects.
+    ''' Asymmetric pipe request. Used as payload in GARQ objects.
     '''
     PARSER = _asym_rq
     
@@ -953,7 +953,7 @@ class AsymRequest(_AsymBase):
 
 class AsymAck(_AsymBase):
     ''' Asymmetric pipe acknowledgement. 
-    Used as payload in MEAR objects.
+    Used as payload in GARQ objects.
     '''
     PARSER = _asym_ak
     
@@ -1003,14 +1003,14 @@ class AsymAck(_AsymBase):
 
 class AsymNak(AsymAck):
     ''' Asymmetric pipe non-acknowledgement. 
-    Used as payload in MEAR objects.
+    Used as payload in GARQ objects.
     Other than magic, identical to AsymAck.
     '''
     PARSER = _asym_nk
 
 
 class AsymElse(_AsymBase):
-    ''' Asymmetric arbitrary payload. Used as payload in MEAR objects.
+    ''' Asymmetric arbitrary payload. Used as payload in GARQ objects.
     '''
     PARSER = _asym_else
     

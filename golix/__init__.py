@@ -2,7 +2,7 @@
 LICENSING
 -------------------------------------------------
 
-mupy: A python library for Muse object manipulation.
+golix: A python library for Golix protocol object manipulation.
     Copyright (C) 2016 Muterra, Inc.
     
     Contributors
@@ -28,45 +28,13 @@ mupy: A python library for Muse object manipulation.
     Boston, MA  02110-1301 USA
 
 ------------------------------------------------------
-
 '''
 
-# Control * imports
-__all__ = ['Muid', 'SecurityError']
+# Add in core module
+from .core import *
 
-# Global dependencies
-import struct
-import abc
-
-
-import collections
-import io
-import os
-from warnings import warn
-
-# Inter-package dependencies
-
-# This is controlled by __all__ in _getlow.
-# Will import: 'MEOC', 'MOBS', 'MOBD', 'MDXX', 'MEPR', 'MPAK', 'MPNK'
-from ._getlow import *
-from .utils import Muid
-from .utils import SecurityError
-from .utils import Secret
-        
-        
-# ###############################################
-# Utilities
-# ###############################################
-
-
-# ###############################################
-# Helper objects
-# ###############################################
-
-
-# ###############################################
-# High-level Muse constructs
-# ###############################################
-
-class ObjectContainer():
-    pass
+# Submodules
+from . import _getlow
+from . import _spec
+from . import cipher
+from . import utils

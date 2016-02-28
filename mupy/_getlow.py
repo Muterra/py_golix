@@ -764,34 +764,109 @@ class MDXX(_MuseObjectBase):
         
 
 class MEAR(_MuseObjectBase):
-    ''' Muse encrypted pipe request.
+    ''' Muse encrypted asymmetric request.
     
     Low level object. In most cases, you don't want this. Does not
     perform state management.
     '''
     PARSER = _mear
+    
+    def __init__(self, recipient=None, payload=None, _control=None, *args, **kwargs):
+        ''' Generates MEAR object.
+        
+        Recipient must be a utils.Muid object (or similar). 
+        Payload must be bytes-like.
+        '''
+        super().__init__(_control=_control, *args, **kwargs)
+        
+        # Don't overwrite anything we loaded from _control!
+        if not _control:
+            self.recipient = recipient
+            self.payload = payload
+        
+    @property
+    def recipient(self):
+        try:
+            return self._control['body']['recipient']
+        except KeyError as e:
+            raise AttributeError('Recipient not yet defined.') from e
+            
+    @recipient.setter
+    def recipient(self, value):
+        self._control['body']['recipient'] = value
+        
+    @property
+    def payload(self):
+        try:
+            return self._control['body']['payload']
+        except KeyError as e:
+            raise AttributeError('Payload not yet defined.') from e
+            
+    @payload.setter
+    def payload(self, value):
+        self._control['body']['payload'] = value
+    
+    # # None of this is useful. Pass it pre-encrypted payload instead.
+    # # AKA, handle upstream. 
+        
+    # @property
+    # def payload(self):
+    #     try:
+    #         return self._payload_obj
+    #     except AttributeError as e:
+    #         raise AttributeError('Payload not yet defined.') from e
+            
+    # @payload.setter
+    # def payload(self, value):
+    #     if not isinstance(value, _AsymBase):
+    #         raise TypeError(
+    #             'Payload must be an AsymRequest, AsymAck, AsymNak, or '
+    #             'AsymElse object.'
+    #         )
+    #     self._payload_obj = value   
+        
+    # def pack(self, *args, **kwargs):
+    #     ''' Initialize output of payload, and then call super.
+    #     '''
+    #     self._control['body']['payload'] = self._payload_obj.pack()
+    #     super().pack(*args, **kwargs)
+        
+    # @classmethod
+    # def unpack(cls, *args, **kwargs):
+    #     obj = super().unpack(*args, **kwargs)
+    #     # Automatically parse whichever payload is there
+    #     payload = _attempt_asym_unpack(obj._control['body']['payload'])
         
     def _get_sig_length(self):
         # Accommodate SP
-        raise NotImplementedError('Define sig length silly!')
-    
-    def __init__(self, recipient, author, payload_id, payload, *args, **kwargs):
-        ''' Generates object and readies it for signing.
+        return cipher_length_lookup[self.cipher]['mac']
         
-        Target must be list.
-        '''
-        super().__init__(*args, **kwargs)
+
+class _AsymBase():
+    pass
 
 
-def _attempt_asym_unpack(data):
-    for fmt in (_asym_pr, _asym_ak, _asym_nk, _asym_else):
-        try:
-            result = fmt.unpack(data)
-            break
-        except parsers.ParseError:
-            pass
-    # This means unsuccessful iteration through all parsers
-    else:
-        raise parsers.ParseError('Improperly formed asymmetric payload.')
-    return result
-        
+class AsymRequest(_AsymBase):
+    ''' Asymmetric pipe request. Used as payload in MEAR objects.
+    '''
+    PARSER = _asym_pr
+
+
+class AsymAck(_AsymBase):
+    ''' Asymmetric pipe acknowledgement. 
+    Used as payload in MEAR objects.
+    '''
+    PARSER = _asym_ak
+
+
+class AsymNak(_AsymBase):
+    ''' Asymmetric pipe non-acknowledgement. 
+    Used as payload in MEAR objects.
+    '''
+    PARSER = _asym_nk
+
+
+class AsymElse(_AsymBase):
+    ''' Asymmetric arbitrary payload. Used as payload in MEAR objects.
+    '''
+    PARSER = _asym_else

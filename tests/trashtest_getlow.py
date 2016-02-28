@@ -45,6 +45,7 @@ from mupy._getlow import MIDC
 from mupy._getlow import MOBS
 from mupy._getlow import MOBD
 from mupy._getlow import MDXX
+from mupy._getlow import MEAR
 
 from mupy.utils import _dummy_signature
 from mupy.utils import _dummy_mac
@@ -172,6 +173,26 @@ if __name__ == '__main__':
     mdxx_2.pack_signature(_dummy_signature)
     mdxx_2p = mdxx_2.packed
     mdxx_2r = MDXX.unpack(mdxx_2p)
+    
+    # MEAR dummy address test.
+    mear_1 = MEAR(
+        recipient=_dummy_author, 
+        payload=_dummy_asym
+    )
+    mear_1.pack(cipher=0, address_algo=0)
+    mear_1.pack_signature(_dummy_mac)
+    mear_1p = mear_1.packed
+    mear_1r = MEAR.unpack(mear_1p)
+    
+    # MEAR actual address test.
+    mear_2 = MEAR(
+        recipient=_rls_author, 
+        payload=_dummy_asym
+    )
+    mear_2.pack(cipher=0, address_algo=1)
+    mear_2.pack_signature(_dummy_mac)
+    mear_2p = mear_2.packed
+    mear_2r = MEAR.unpack(mear_2p)
     
     import IPython
     IPython.embed()

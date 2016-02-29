@@ -252,7 +252,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         # This will need to be converted into a namedtuple or something
         return geoc.guid, geoc.packed
         
-    def bind_static(self, guid):        
+    def make_bind_static(self, guid):        
         gobs = GOBS(
             binder = self.author_guid,
             target = guid
@@ -262,7 +262,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         gobs.pack_signature(signature)
         return gobs.guid, gobs.packed
         
-    def bind_dynamic(self, guids, address=None, history=None):
+    def make_bind_dynamic(self, guids, address=None, history=None):
         gobd = GOBD(
             binder = self.author_guid,
             targets = guids,
@@ -273,6 +273,16 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         signature = self._sign(gobd.guid.address)
         gobd.pack_signature(signature)
         return gobd.guid, gobd.packed, gobd.dynamic_address
+        
+    def make_debind(self, guid):
+        gdxx = GDXX(
+            debinder = self.author_guid,
+            target = guid
+        )
+        gdxx.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
+        signature = self._sign(gdxx.guid.address)
+        gdxx.pack_signature(signature)
+        return gdxx.guid, gdxx.packed
         
     @classmethod
     @abc.abstractmethod
@@ -365,6 +375,9 @@ class _ThirdPersonBase(metaclass=abc.ABCMeta):
     @classmethod
     @abc.abstractmethod
     def _pack_keys(cls, keys):
+        ''' Convert self.keys from objects used for crypto operations
+        into bytes-like objects suitable for output into a GIDC.
+        '''
         pass
         
     @abc.abstractmethod

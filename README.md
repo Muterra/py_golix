@@ -5,6 +5,8 @@ Golix: Python.
 
 A python library for [Golix protocol](https://github.com/Muterra/doc-golix) objects. Not a full client implementation.
 
+[![Code Climate](https://codeclimate.com/github/Muterra/py_golix/badges/gpa.svg)](https://codeclimate.com/github/Muterra/py_golix)
+
 # Notes
 
 ### Why PyCryptoDome over cryptography.io?

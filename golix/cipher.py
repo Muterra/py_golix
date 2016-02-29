@@ -328,6 +328,10 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
             binder = self.author_guid,
             target = guid
         )
+        gobs.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
+        signature = self._sign(gobs.guid.address)
+        gobs.pack_signature(signature)
+        return gobs.guid, gobs.packed
         
     def bind_dynamic(self, guids, address=None, history=None):
         pass

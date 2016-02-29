@@ -162,7 +162,7 @@ def run():
     # GDXX dummy address test.
     gdxx_1 = GDXX(
         debinder=_dummy_author, 
-        targets=[_dummy_guid]
+        target=_dummy_guid
     )
     gdxx_1.pack(cipher=0, address_algo=0)
     gdxx_1.pack_signature(_dummy_signature)
@@ -172,7 +172,7 @@ def run():
     # GDXX actual address test.
     gdxx_2 = GDXX(
         debinder=_rls_author, 
-        targets=[_dummy_guid]
+        target=_dummy_guid
     )
     gdxx_2.pack(cipher=0, address_algo=1)
     gdxx_2.pack_signature(_dummy_signature)

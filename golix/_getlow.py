@@ -729,7 +729,7 @@ class GDXX(_GolixObjectBase):
     '''
     PARSER = _gdxx
     
-    def __init__(self, debinder=None, targets=None, _control=None, *args, **kwargs):
+    def __init__(self, debinder=None, target=None, _control=None, *args, **kwargs):
         ''' Generates GDXX object.
         
         Binder and target should be a utils.Guid object (or similar).
@@ -739,7 +739,7 @@ class GDXX(_GolixObjectBase):
         # Don't overwrite anything we loaded from _control!
         if not _control:
             self.debinder = debinder
-            self.targets = targets
+            self.target = target
         
     @property
     def debinder(self):
@@ -753,15 +753,15 @@ class GDXX(_GolixObjectBase):
         self._control['body']['debinder'] = value
         
     @property
-    def targets(self):
+    def target(self):
         try:
-            return self._control['body']['targets']
+            return self._control['body']['target']
         except KeyError as e:
             raise AttributeError('Targets not yet defined.') from e
             
-    @targets.setter
-    def targets(self, value):
-        self._control['body']['targets'] = value
+    @target.setter
+    def target(self, value):
+        self._control['body']['target'] = value
         
 
 class GARQ(_GolixObjectBase):

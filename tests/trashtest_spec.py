@@ -125,11 +125,11 @@ def run():
     # GDXX test parsers
     gdxx_1 = {
         'magic': b'GDXX',
-        'version': 8,
+        'version': 9,
         'cipher': 0,
         'body': {
             'debinder': _dummy_guid,
-            'targets': [_dummy_guid, _dummy_guid],
+            'target': _dummy_guid,
         },
         'guid': _dummy_guid,
         'signature': _dummy_signature

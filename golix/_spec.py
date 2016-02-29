@@ -258,11 +258,9 @@ _gdxx['guid'] = generate_guid_parser()
 _gdxx['signature'] = None
 
 _gdxx_lookup = {}
-_gdxx_lookup[8] = SmartyParser()
-_gdxx_lookup[8]['debinder'] = generate_guid_parser()
-_gdxx_lookup[8]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
-_gdxx_lookup[8]['targets'] = _guidlist
-_gdxx_lookup[8].link_length('targets', 'targets_length')
+_gdxx_lookup[9] = SmartyParser()
+_gdxx_lookup[9]['debinder'] = generate_guid_parser()
+_gdxx_lookup[9]['target'] = generate_guid_parser()
     
 _gdxx['version'].register_callback('prepack', _gen_dispatch(_gdxx, _gdxx_lookup, 'body'))
 _gdxx['version'].register_callback('postunpack', _gen_dispatch(_gdxx, _gdxx_lookup, 'body'))

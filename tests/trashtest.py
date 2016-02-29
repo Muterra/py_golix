@@ -84,8 +84,8 @@ def run():
     # Test them on GEOCs:
     _dummy_payload = b'[[ Hello, world? ]]'
     
-    secret1, guid1, geoc_1p = fake_first_id.make_geoc(_dummy_payload)
-    secret3, guid3, geoc_3p = first_id_1.make_geoc(_dummy_payload)
+    secret1, guid1, geoc_1p = fake_first_id.make_object(_dummy_payload)
+    secret3, guid3, geoc_3p = first_id_1.make_object(_dummy_payload)
     
     # Normal unpacking operation for first
     geoc_1r = GEOC.unpack(geoc_1p)

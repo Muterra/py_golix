@@ -123,8 +123,12 @@ from .utils import _dummy_pubkey
 from .utils import ADDRESS_ALGOS
 from .utils import Secret
 
-from ._getlow import GEOC
 from ._getlow import GIDC
+from ._getlow import GEOC
+from ._getlow import GOBS
+from ._getlow import GOBD
+from ._getlow import GDXX
+from ._getlow import GARQ
 
 # Some globals
 DEFAULT_ADDRESSER = 1
@@ -309,7 +313,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def third_party(self):
         return self._third_party
          
-    def make_geoc(self, plaintext):
+    def make_object(self, plaintext):
         geoc = GEOC(author=self.author_guid)
         secret = self._new_secret()
         geoc.payload = self._encrypt(secret, plaintext)
@@ -318,6 +322,18 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         geoc.pack_signature(signature)
         # This will need to be converted into a namedtuple or something
         return secret, geoc.guid, geoc.packed
+        
+    def bind_static(self, guid):
+        if not isinstance(guid, Guid):
+            raise TypeError('Argument guid must be type Guid or similar.')
+        
+        gobs = GOBS(
+            binder = self.author_guid,
+            target = guid
+        )
+        
+    def bind_dynamic(self, guids, address=None, history=None):
+        pass
         
     @classmethod
     @abc.abstractmethod

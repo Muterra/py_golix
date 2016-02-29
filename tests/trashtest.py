@@ -83,25 +83,30 @@ def run():
     
     # Test them on GEOCs:
     _dummy_payload = b'[[ Hello, world? ]]'
+    _dummy_payload_2 = b'[[ Hiyaback! ]]'
     
-    secret1, guid1, geoc_1p = fake_first_id.make_object(_dummy_payload)
-    secret2, guid2, geoc_2p = first_id_1.make_object(_dummy_payload)
+    secret1 = fake_first_id.new_secret()
+    secret2 = first_id_1.new_secret()
+    secret3 = first_id_1.new_secret()
+    obj1_guid, obj1 = fake_first_id.make_object(secret1, _dummy_payload)
+    obj2_guid, obj2 = first_id_1.make_object(secret2, _dummy_payload)
+    obj3_guid, obj3 = first_id_1.make_object(secret3, _dummy_payload_2)
     
     # Now try making static bindings for them.
-    bind1_guid, bind1 = fake_first_id.bind_static(guid1)
-    bind2_guid, bind2 = first_id_1.bind_static(guid2)
+    bind1_guid, bind1 = fake_first_id.bind_static(obj1_guid)
+    bind2_guid, bind2 = first_id_1.bind_static(obj2_guid)
     
     # Normal unpacking operation for first
     # Should add something within firstpartyidentity that figures out the
     # author for you, so you don't have to do this bit.
-    geoc_1r = GEOC.unpack(geoc_1p)
+    geoc_1r = GEOC.unpack(obj1)
     author_1 = known_third_parties[geoc_1r.author]
-    guid_1, geoc_1r_plaintext = author_1.load_geoc(secret1, geoc_1p)
+    guid_1, geoc_1r_plaintext = author_1.load_geoc(secret1, obj1)
     
     # Extra-normal unpacking operation for third.
     # Note that the author lookup ideally shouldn't be necessary if you already 
     # know who it is.
-    guid_2, geoc_2r_plaintext = third_id_1.load_geoc(secret2, geoc_2p)
+    guid_2, geoc_2r_plaintext = third_id_1.load_geoc(secret2, obj2)
     
     # import IPython
     # IPython.embed()

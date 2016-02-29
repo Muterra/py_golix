@@ -282,6 +282,15 @@ class _IdentityBase(metaclass=abc.ABCMeta):
             )
         return address_algo
         
+    @classmethod
+    def _typecheck_secret(cls, secret):
+        # Awkward but gets the job done
+        if not isinstance(secret, Secret):
+            return False
+        if secret.cipher != cls._ciphersuite:
+            return False
+        return True
+        
         
 class _FirstPersonBase(metaclass=abc.ABCMeta):
     DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
@@ -313,15 +322,20 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def third_party(self):
         return self._third_party
          
-    def make_object(self, plaintext):
+    def make_object(self, secret, plaintext):
+        if not self._typecheck_secret(secret):
+            raise TypeError(
+                'Secret must be a properly-formatted Secret compatible with '
+                'the current identity\'s declared ciphersuite.'
+            )
+        
         geoc = GEOC(author=self.author_guid)
-        secret = self._new_secret()
         geoc.payload = self._encrypt(secret, plaintext)
         geoc.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(geoc.guid.address)
         geoc.pack_signature(signature)
         # This will need to be converted into a namedtuple or something
-        return secret, geoc.guid, geoc.packed
+        return geoc.guid, geoc.packed
         
     def bind_static(self, guid):        
         gobs = GOBS(
@@ -334,7 +348,16 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         return gobs.guid, gobs.packed
         
     def bind_dynamic(self, guids, address=None, history=None):
-        pass
+        gobd = GOBD(
+            binder = self.author_guid,
+            targets = guids,
+            dynamic_address = address,
+            history = history
+        )
+        gobd.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
+        signature = self._sign(gobd.guid.address)
+        gobd.pack_signature(signature)
+        return gobd.guid, gobd.packed, gobd.dynamic_address
         
     @classmethod
     @abc.abstractmethod
@@ -351,7 +374,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     
     @classmethod
     @abc.abstractmethod
-    def _new_secret(cls, *args, **kwargs):
+    def new_secret(cls, *args, **kwargs):
         ''' Placeholder method to create new symmetric secret. Returns
         a Secret().
         '''
@@ -566,10 +589,10 @@ class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
         return keys
     
     @classmethod
-    def _new_secret(cls):
+    def new_secret(cls):
         ''' Placeholder method to create new symmetric secret.
         '''
-        return super()._new_secret(key=bytes(32), seed=None)
+        return super().new_secret(key=bytes(32), seed=None)
         
     @classmethod
     def _sign(cls, *args, **kwargs):
@@ -874,12 +897,12 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
         return keys
     
     @classmethod
-    def _new_secret(cls):
+    def new_secret(cls):
         ''' Returns a new secure Secret().
         '''
         key = get_random_bytes(32)
         nonce = get_random_bytes(16)
-        return super()._new_secret(key=key, seed=nonce)
+        return super().new_secret(key=key, seed=nonce)
         
     def _sign(self, data):
         ''' Placeholder signing method.

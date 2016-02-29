@@ -133,7 +133,28 @@ def _attempt_asym_unpack(data):
     else:
         raise parsers.ParseError('Improperly formed asymmetric payload.')
     return result
-
+    
+    
+def _typecheck_guid(guid):
+    # Use None as a no-op
+    if guid is not None and not isinstance(guid, Guid):
+        return False
+    else:
+        return True
+    
+    
+def _typecheck_guidlist(iterable):
+    # Messy but effective.
+    # Use None as a no-op
+    if iterable is None:
+        return True
+    elif not isinstance(iterable, collections.Iterable):
+        return False
+    for iterant in iterable:
+        if not _typecheck_guid(iterant):
+            return False
+    return True
+    
 
 # ###############################################
 # Low-level Golix object interfaces
@@ -208,8 +229,11 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         return self._control['guid']
         
     @guid.setter
-    def guid(self, value):
-        self._control['guid'] = value
+    def guid(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Guid must be type Guid or similar.')
+            
+        self._control['guid'] = guid
         
     @property
     def version(self):
@@ -463,10 +487,13 @@ class GEOC(_GolixObjectBase):
             raise AttributeError('Author not yet defined.') from e
             
     @author.setter
-    def author(self, value):
+    def author(self, guid):
         # DON'T implement a deleter, because without a payload, this is
         # meaningless. Use None for temporary payloads.
-        self._control['body']['author'] = value
+        if not _typecheck_guid(guid):
+            raise TypeError('Authors must be type Guid or similar.')
+            
+        self._control['body']['author'] = guid
         
 
 class GOBS(_GolixObjectBase):
@@ -497,8 +524,11 @@ class GOBS(_GolixObjectBase):
             raise AttributeError('Binder not yet defined.') from e
             
     @binder.setter
-    def binder(self, value):
-        self._control['body']['binder'] = value
+    def binder(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Binders must be type Guid or similar.')
+            
+        self._control['body']['binder'] = guid
         
     @property
     def target(self):
@@ -508,8 +538,11 @@ class GOBS(_GolixObjectBase):
             raise AttributeError('Target not yet defined.') from e
             
     @target.setter
-    def target(self, value):
-        self._control['body']['target'] = value
+    def target(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Targets must be type Guid or similar.')
+            
+        self._control['body']['target'] = guid
         
 
 class GOBD(_GolixObjectBase):
@@ -548,8 +581,11 @@ class GOBD(_GolixObjectBase):
             raise AttributeError('Binder not yet defined.') from e
             
     @binder.setter
-    def binder(self, value):
-        self._control['body']['binder'] = value
+    def binder(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Binders must be type Guid or similar.')
+            
+        self._control['body']['binder'] = guid
         
     @property
     def targets(self):
@@ -560,6 +596,9 @@ class GOBD(_GolixObjectBase):
             
     @targets.setter
     def targets(self, value):
+        if not _typecheck_guidlist(value):
+            raise TypeError('Targets must be an iterable of Guids or similar.')
+        
         self._control['body']['targets'] = value
         
     @property
@@ -570,8 +609,11 @@ class GOBD(_GolixObjectBase):
             raise AttributeError('Dynamic address not yet defined.') from e
             
     @dynamic_address.setter
-    def dynamic_address(self, value):
-        self._control['guid_dynamic'] = value
+    def dynamic_address(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Dynamic_address must be type Guid or similar.')
+            
+        self._control['guid_dynamic'] = guid
         
     @property
     def history(self):
@@ -582,6 +624,9 @@ class GOBD(_GolixObjectBase):
             
     @history.setter
     def history(self, value):
+        if not _typecheck_guidlist(value):
+            raise TypeError('History must be an iterable of Guids or similar.')
+
         self._control['body']['history'] = value
         
     def pack(self, address_algo, cipher):
@@ -749,8 +794,11 @@ class GDXX(_GolixObjectBase):
             raise AttributeError('Debinder not yet defined.') from e
             
     @debinder.setter
-    def debinder(self, value):
-        self._control['body']['debinder'] = value
+    def debinder(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Debinder must be type Guid or similar.')
+
+        self._control['body']['debinder'] = guid
         
     @property
     def target(self):
@@ -760,8 +808,11 @@ class GDXX(_GolixObjectBase):
             raise AttributeError('Targets not yet defined.') from e
             
     @target.setter
-    def target(self, value):
-        self._control['body']['target'] = value
+    def target(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Target must be type Guid or similar.')
+
+        self._control['body']['target'] = guid
         
 
 class GARQ(_GolixObjectBase):
@@ -793,8 +844,11 @@ class GARQ(_GolixObjectBase):
             raise AttributeError('Recipient not yet defined.') from e
             
     @recipient.setter
-    def recipient(self, value):
-        self._control['body']['recipient'] = value
+    def recipient(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Recipient must be type Guid or similar.')
+
+        self._control['body']['recipient'] = guid
         
     @property
     def payload(self):

@@ -323,10 +323,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         # This will need to be converted into a namedtuple or something
         return secret, geoc.guid, geoc.packed
         
-    def bind_static(self, guid):
-        if not isinstance(guid, Guid):
-            raise TypeError('Argument guid must be type Guid or similar.')
-        
+    def bind_static(self, guid):        
         gobs = GOBS(
             binder = self.author_guid,
             target = guid

@@ -86,15 +86,37 @@ def run():
     _dummy_payload_2 = b'[[ Hiyaback! ]]'
     
     secret1 = fake_first_id.new_secret()
+    secret1a = fake_first_id.new_secret()
     secret2 = first_id_1.new_secret()
-    secret3 = first_id_1.new_secret()
+    secret2a = first_id_1.new_secret()
+    
     obj1_guid, obj1 = fake_first_id.make_object(secret1, _dummy_payload)
+    obj1a_guid, obj1a = fake_first_id.make_object(secret1a, _dummy_payload_2)
     obj2_guid, obj2 = first_id_1.make_object(secret2, _dummy_payload)
-    obj3_guid, obj3 = first_id_1.make_object(secret3, _dummy_payload_2)
+    obj2a_guid, obj2a = first_id_1.make_object(secret2a, _dummy_payload_2)
     
     # Now try making static bindings for them.
     bind1_guid, bind1 = fake_first_id.bind_static(obj1_guid)
     bind2_guid, bind2 = first_id_1.bind_static(obj2_guid)
+    
+    # Now try making dynamic bindings for them.
+    bind1d_guid1, bind1d, bind1d_guid = fake_first_id.bind_dynamic([obj1_guid, obj1a_guid])
+    bind2d_guid1, bind2d, bind2d_guid = first_id_1.bind_dynamic([obj2_guid, obj2a_guid])
+    
+    # And try making dynamic bindings with history now.
+    bind1d_guid2, bind1d2, bind1d_guidR = fake_first_id.bind_dynamic(
+        guids = [obj1a_guid],
+        address = bind1d_guid,
+        history = [bind1d_guid1]
+    )
+    assert bind1d_guidR == bind1d_guid
+    
+    bind2d_guid2, bind2d2, bind2d_guidR = first_id_1.bind_dynamic(
+        guids = [obj2a_guid],
+        address = bind2d_guid,
+        history = [bind2d_guid1]
+    )
+    assert bind2d_guidR == bind2d_guid
     
     # Normal unpacking operation for first
     # Should add something within firstpartyidentity that figures out the

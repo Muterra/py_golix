@@ -341,10 +341,10 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         gobs.pack_signature(signature)
         return gobs.guid, gobs.packed
         
-    def make_bind_dynamic(self, guids, address=None, history=None):
+    def make_bind_dynamic(self, guid, address=None, history=None):
         gobd = GOBD(
             binder = self.author_guid,
-            targets = guids,
+            target = guid,
             dynamic_address = address,
             history = history
         )
@@ -441,6 +441,10 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
             )
         )
         return garq
+        
+    def receive_request(self, request):
+        ''' Handles the packed request
+        '''
         
     @classmethod
     @abc.abstractmethod

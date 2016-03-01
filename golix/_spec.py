@@ -229,14 +229,12 @@ _gobd['guid'] = generate_guid_parser()
 _gobd['signature'] = None
 
 _gobd_lookup = {}
-_gobd_lookup[14] = SmartyParser()
-_gobd_lookup[14]['binder'] = generate_guid_parser()
-_gobd_lookup[14]['history_length'] = ParseHelper(parsers.Int16(signed=False))
-_gobd_lookup[14]['history'] = _guidlist
-_gobd_lookup[14]['targets_length'] = ParseHelper(parsers.Int32(signed=False))
-_gobd_lookup[14]['targets'] = _guidlist
-_gobd_lookup[14].link_length('history', 'history_length')
-_gobd_lookup[14].link_length('targets', 'targets_length')
+_gobd_lookup[15] = SmartyParser()
+_gobd_lookup[15]['binder'] = generate_guid_parser()
+_gobd_lookup[15]['history_length'] = ParseHelper(parsers.Int16(signed=False))
+_gobd_lookup[15]['history'] = _guidlist
+_gobd_lookup[15]['target'] = generate_guid_parser()
+_gobd_lookup[15].link_length('history', 'history_length')
     
 _gobd['version'].register_callback('prepack', _gen_dispatch(_gobd, _gobd_lookup, 'body'))
 _gobd['version'].register_callback('postunpack', _gen_dispatch(_gobd, _gobd_lookup, 'body'))

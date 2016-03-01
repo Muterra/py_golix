@@ -130,7 +130,7 @@ def run():
     # GOBD dummy address test.
     gobd_1 = GOBD(
         binder=_dummy_author, 
-        targets=[_dummy_guid, _dummy_guid]
+        target=_dummy_guid
     )
     gobd_1.pack(cipher=0, address_algo=0)
     gobd_1.pack_signature(_dummy_signature)
@@ -140,7 +140,7 @@ def run():
     # GOBD actual address test.
     gobd_2 = GOBD(
         binder=_rls_author, 
-        targets=[_dummy_guid, _dummy_guid]
+        target=_dummy_guid
     )
     gobd_2.pack(cipher=0, address_algo=1)
     gobd_2.pack_signature(_dummy_signature)
@@ -150,7 +150,7 @@ def run():
     # GOBD actual address test, with history
     gobd_3 = GOBD(
         binder=_rls_author, 
-        targets=[_dummy_guid, _dummy_guid],
+        target=_dummy_guid,
         dynamic_address=gobd_2.dynamic_address,
         history=[gobd_2.guid]
     )

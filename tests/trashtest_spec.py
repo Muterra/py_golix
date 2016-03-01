@@ -107,12 +107,12 @@ def run():
     # GOBD test parsers
     gobd_1 = {
         'magic': b'GOBD',
-        'version': 14,
+        'version': 15,
         'cipher': 0,
         'body': {
             'binder': _dummy_guid,
             'history': [],
-            'targets': [_dummy_guid, _dummy_guid],
+            'target': _dummy_guid,
         },
         'guid_dynamic': _dummy_guid,
         'guid': _dummy_guid,

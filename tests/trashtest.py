@@ -100,19 +100,19 @@ def run():
     bind2_guid, bind2 = first_id_1.make_bind_static(obj2_guid)
     
     # Now try making dynamic bindings for them.
-    bind1d_guid1, bind1d, bind1d_guid = fake_first_id.make_bind_dynamic([obj1_guid, obj1a_guid])
-    bind2d_guid1, bind2d, bind2d_guid = first_id_1.make_bind_dynamic([obj2_guid, obj2a_guid])
+    bind1d_guid1, bind1d, bind1d_guid = fake_first_id.make_bind_dynamic(obj1_guid)
+    bind2d_guid1, bind2d, bind2d_guid = first_id_1.make_bind_dynamic(obj2_guid)
     
     # And try making dynamic bindings with history now.
     bind1d_guid2, bind1d2, bind1d_guidR = fake_first_id.make_bind_dynamic(
-        guids = [obj1a_guid],
+        guid = obj1a_guid,
         address = bind1d_guid,
         history = [bind1d_guid1]
     )
     assert bind1d_guidR == bind1d_guid
     
     bind2d_guid2, bind2d2, bind2d_guidR = first_id_1.make_bind_dynamic(
-        guids = [obj2a_guid],
+        guid = obj2a_guid,
         address = bind2d_guid,
         history = [bind2d_guid1]
     )

@@ -556,7 +556,7 @@ class GOBD(_GolixObjectBase):
     def __init__(self, 
                 binder=None, 
                 history=None, 
-                targets=None, 
+                target=None, 
                 dynamic_address=None, 
                 _control=None, *args, **kwargs):
         ''' Generates GOBS object.
@@ -569,7 +569,7 @@ class GOBD(_GolixObjectBase):
         # Don't overwrite anything we loaded from _control!
         if not _control:
             self.binder = binder
-            self.targets = targets
+            self.target = target
             self.dynamic_address = dynamic_address
             self.history = history
         
@@ -588,18 +588,18 @@ class GOBD(_GolixObjectBase):
         self._control['body']['binder'] = guid
         
     @property
-    def targets(self):
+    def target(self):
         try:
-            return self._control['body']['targets']
+            return self._control['body']['target']
         except KeyError as e:
             raise AttributeError('Targets not yet defined.') from e
             
-    @targets.setter
-    def targets(self, value):
-        if not _typecheck_guidlist(value):
-            raise TypeError('Targets must be an iterable of Guids or similar.')
+    @target.setter
+    def target(self, value):
+        if not _typecheck_guid(value):
+            raise TypeError('Target must be type Guid or similar.')
         
-        self._control['body']['targets'] = value
+        self._control['body']['target'] = value
         
     @property
     def dynamic_address(self):

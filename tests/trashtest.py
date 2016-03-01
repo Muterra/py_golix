@@ -166,14 +166,15 @@ def run():
     # Normal unpacking operation for first
     # Should add something within firstpartyidentity that figures out the
     # author for you, so you don't have to do this bit.
-    geoc_1r = GEOC.unpack(obj1)
-    author_1 = known_third_parties[geoc_1r.author]
-    guid_1, geoc_1r_plaintext = author_1.load_geoc(secret1, obj1)
+    authorguid_1, geoc1 = fake_first_id.unpack_object(obj1)
+    author_1 = known_third_parties[authorguid_1]
+    guid_1, geoc_1r_plaintext = fake_first_id.receive_object(author_1, secret1, geoc1)
     
     # Extra-normal unpacking operation for third.
     # Note that the author lookup ideally shouldn't be necessary if you already 
     # know who it is.
-    guid_2, geoc_2r_plaintext = third_id_1.load_geoc(secret2, obj2)
+    authorguid_2, geoc2 = first_id_1.unpack_object(obj2)
+    guid_2, geoc_2r_plaintext = first_id_1.receive_object(third_id_1, secret2, geoc2)
     
     # import IPython
     # IPython.embed()

@@ -235,53 +235,12 @@ class _ThirdPersonBase(metaclass=abc.ABCMeta):
         self = cls(keys=keys, author_guid=author_guid)
         self.packed = gidc.packed
         return self
-    
-    def load_geoc(self, secret, geoc):
-        # Handle loading a raw geoc, if that's what's passed
-        try:
-            memoryview(geoc)
-            geoc = GEOC.unpack(geoc)
-        except TypeError:
-            pass
-        
-        signature = geoc.signature
-        self._verify(signature, geoc.guid.address)
-        plaintext = self._decrypt(secret, geoc.payload)
-        # This will need to be converted into a namedtuple or something
-        return geoc.guid, plaintext
         
     @classmethod
     @abc.abstractmethod
     def _pack_keys(cls, keys):
         ''' Convert self.keys from objects used for crypto operations
         into bytes-like objects suitable for output into a GIDC.
-        '''
-        pass
-        
-    @abc.abstractmethod
-    def _verify(self, signature, data):
-        ''' Verifies an author's signature against bites. Errors out if 
-        unsuccessful. Returns True if successful.
-        '''
-        pass
-        
-    @abc.abstractmethod
-    def _encrypt_asym(self, data):
-        ''' Placeholder asymmetric encryptor.
-        '''
-        pass
-        
-    @classmethod
-    @abc.abstractmethod
-    def _decrypt(self, secret, data):
-        ''' Placeholder symmetric decryptor.
-        '''
-        pass
-        
-    @classmethod
-    @abc.abstractmethod
-    def _encrypt(self, data):
-        ''' Placeholder symmetric encryptor.
         '''
         pass
         
@@ -311,6 +270,17 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
             
         # Now dispatch super() with the adjusted keys, author_guid
         super().__init__(keys=keys, author_guid=author_guid, *args, **kwargs)
+        
+    @classmethod
+    def _typecheck_thirdparty(cls, obj):
+        # Type check the partner. Must be ThirdPersonIdentityX or similar.
+        if not isinstance(obj, cls._3PID):
+            raise TypeError(
+                'Object must be a ThirdPersonIdentity of compatible type '
+                'with the FirstPersonIdentity initiating the request/ack/nak.'
+            )
+        else:
+            return True
     
     @property
     def third_party(self):
@@ -364,12 +334,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         return gdxx.guid, gdxx.packed
         
     def make_request(self, secret, target, recipient):
-        # Type check the partner. Must be ThirdPersonIdentityX or similar.
-        if not isinstance(recipient, self._3PID):
-            raise TypeError(
-                'Recipient must be a ThirdPersonIdentity of compatible type '
-                'with the FirstPersonIdentity initiating the request/ack/nak.'
-            )
+        self._typecheck_thirdparty(recipient)
         
         request = AsymRequest(
             author = self.author_guid,
@@ -384,12 +349,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         return garq.guid, garq.packed
         
     def make_ack(self, target, recipient, status=0):
-        # Type check the partner. Must be ThirdPersonIdentityX or similar.
-        if not isinstance(recipient, self._3PID):
-            raise TypeError(
-                'Recipient must be a ThirdPersonIdentity of compatible type '
-                'with the FirstPersonIdentity initiating the request/ack/nak.'
-            )
+        self._typecheck_thirdparty(recipient)
         
         ack = AsymAck(
             author = self.author_guid,
@@ -404,12 +364,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         return garq.guid, garq.packed
         
     def make_nak(self, target, recipient, status=0):
-        # Type check the partner. Must be ThirdPersonIdentityX or similar.
-        if not isinstance(recipient, self._3PID):
-            raise TypeError(
-                'Recipient must be a ThirdPersonIdentity of compatible type '
-                'with the FirstPersonIdentity initiating the request/ack/nak.'
-            )
+        self._typecheck_thirdparty(recipient)
         
         nak = AsymNak(
             author = self.author_guid,
@@ -425,7 +380,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         
     def _make_asym(self, recipient, plaintext):
         # Convert the plaintext to a proper payload and create a garq from it
-        payload = recipient._encrypt_asym(plaintext)
+        payload = self._encrypt_asym(recipient, plaintext)
         del plaintext
         garq = GARQ(
             recipient = recipient.author_guid,
@@ -445,6 +400,24 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def receive_request(self, request):
         ''' Handles the packed request
         '''
+        pass
+        
+    def unpack_object(self, packed):
+        geoc = GEOC.unpack(packed)
+        return geoc.author, geoc
+    
+    def receive_object(self, public, secret, obj):
+        if not isinstance(obj, GEOC):
+            raise TypeError(
+                'Obj must be an unpacked GEOC, for example, as returned from '
+                'unpack_object.'
+            )
+        
+        signature = obj.signature
+        self._verify(public, signature, obj.guid.address)
+        plaintext = self._decrypt(secret, obj.payload)
+        # This will need to be converted into a namedtuple or something
+        return obj.guid, plaintext
         
     @classmethod
     @abc.abstractmethod
@@ -474,6 +447,19 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         pass
         
     @abc.abstractmethod
+    def _verify(self, public, signature, data):
+        ''' Verifies an author's signature against bites. Errors out if 
+        unsuccessful. Returns True if successful.
+        '''
+        pass
+        
+    @abc.abstractmethod
+    def _encrypt_asym(self, public, data):
+        ''' Placeholder asymmetric encryptor.
+        '''
+        pass
+        
+    @abc.abstractmethod
     def _decrypt_asym(self, data):
         ''' Placeholder asymmetric decryptor.
         '''
@@ -481,17 +467,14 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         
     @classmethod
     @abc.abstractmethod
-    def _decrypt(self, secret, data):
+    def _decrypt(cls, secret, data):
         ''' Placeholder symmetric decryptor.
-        
-        Handle multiple ciphersuites by having a thirdpartyidentity for
-        whichever author created it, and calling their decrypt instead.
         '''
         pass
         
     @classmethod
     @abc.abstractmethod
-    def _encrypt(self, data):
+    def _encrypt(cls, secret, data):
         ''' Placeholder symmetric encryptor.
         '''
         pass
@@ -509,6 +492,13 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         ''' Generate a MAC for data using key.
         '''
         pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _verify_mac(cls, key, mac, data):
+        ''' Generate a MAC for data using key.
+        '''
+        pass
     
         
 class ThirdPersonIdentity0(_ThirdPersonBase, _IdentityBase):
@@ -517,42 +507,6 @@ class ThirdPersonIdentity0(_ThirdPersonBase, _IdentityBase):
     @classmethod
     def _pack_keys(cls, keys):
         return keys
-        
-    @classmethod
-    def _verify(cls, *args, **kwargs):
-        ''' Verifies an author's signature against bites. Errors out if 
-        unsuccessful. Returns True if successful.
-        
-        Data must be bytes-like. public_key should be a dictionary 
-        formatted with all necessary components for a public key (?).
-        Signature must be bytes-like.
-        '''
-        return True
-        
-    @classmethod
-    def _encrypt_asym(cls, *args, **kwargs):
-        ''' Placeholder asymmetric encryptor.
-        
-        Data should be bytes-like. Public key should be a dictionary 
-        formatted with all necessary components for a public key.
-        '''
-        return _dummy_asym
-        
-    @classmethod
-    def _decrypt(cls, *args, **kwargs):
-        ''' Placeholder symmetric decryptor.
-        
-        Data should be bytes-like. Key should be bytes-like.
-        '''
-        return b'[[ PLACEHOLDER DECRYPTED SYMMETRIC MESSAGE. Hello world! ]]'
-        
-    @classmethod
-    def _encrypt(cls, *args, **kwargs):
-        ''' Placeholder symmetric encryptor.
-        
-        Data should be bytes-like. Key should be bytes-like.
-        '''
-        return b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
         
         
 class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
@@ -570,8 +524,6 @@ class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
     # Well it's not exactly repeating yourself, though it does mean there
     # are sorta two ways to perform decryption. Best practice = always decrypt
     # using the author's ThirdPersonIdentity
-    _encrypt = _3PID._encrypt
-    _decrypt = _3PID._decrypt
         
     @classmethod
     def _generate_third_person(cls, keys, address_algo):
@@ -594,17 +546,35 @@ class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
         '''
         return super().new_secret(key=bytes(32), seed=None)
         
-    @classmethod
-    def _sign(cls, *args, **kwargs):
+    def _sign(self, data):
         ''' Placeholder signing method.
         
         Data must be bytes-like. Private key should be a dictionary 
         formatted with all necessary components for a private key (?).
         '''
         return _dummy_signature
+    
+    def _verify(self, public, signature, data):
+        ''' Verifies an author's signature against bites. Errors out if 
+        unsuccessful. Returns True if successful.
         
-    @classmethod
-    def _decrypt_asym(cls, *args, **kwargs):
+        Data must be bytes-like. public_key should be a dictionary 
+        formatted with all necessary components for a public key (?).
+        Signature must be bytes-like.
+        '''
+        self._typecheck_thirdparty(public)
+        return True
+        
+    def _encrypt_asym(self, public, data):
+        ''' Placeholder asymmetric encryptor.
+        
+        Data should be bytes-like. Public key should be a dictionary 
+        formatted with all necessary components for a public key.
+        '''
+        self._typecheck_thirdparty(public)
+        return _dummy_asym
+        
+    def _decrypt_asym(self, data):
         ''' Placeholder asymmetric decryptor.
         
         Maybe add kwarguments do define what kind of internal object is
@@ -622,10 +592,27 @@ class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
         # since it's 100% an invalid declaration of internal content.
         # But, it's a good starting point.
         return _dummy_asym
+        
+    @classmethod
+    def _decrypt(cls, secret, data):
+        ''' Placeholder symmetric decryptor.
+        
+        Data should be bytes-like. Key should be bytes-like.
+        '''
+        return b'[[ PLACEHOLDER DECRYPTED SYMMETRIC MESSAGE. Hello world! ]]'
+        
+    @classmethod
+    def _encrypt(cls, secret, data):
+        ''' Placeholder symmetric encryptor.
+        
+        Data should be bytes-like. Key should be bytes-like.
+        '''
+        return b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
     
     def _derive_shared(self, partner):
         ''' Derive a shared secret with the partner.
         '''
+        self._typecheck_thirdparty(partner)
         return b'[[ Placeholder shared secret ]]'
         
     @classmethod
@@ -633,6 +620,10 @@ class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
         ''' Generate a MAC for data using key.
         '''
         return _dummy_mac
+        
+    @classmethod
+    def _verify_mac(cls, key, mac, data):
+        return True
         
 
 class ThirdPersonIdentity1(_ThirdPersonBase, _IdentityBase): 
@@ -646,61 +637,6 @@ class ThirdPersonIdentity1(_ThirdPersonBase, _IdentityBase):
             'exchange': keys['exchange'].public,
         }
         return packkeys
-       
-    def _verify(self, signature, data):
-        ''' Verifies an author's signature against bites. Errors out if 
-        unsuccessful. Returns True if successful.
-        
-        Data must be bytes-like. public_key should be a dictionary 
-        formatted with all necessary components for a public key (?).
-        Signature must be bytes-like.
-        '''
-        h = _FrozenSHA512(data)
-        signer = PSS.new(self._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)
-        try:
-            signer.verify(h, signature)
-        except ValueError as e:
-            raise SecurityError('Failed to verify signature.') from e
-            
-        return True
-        
-    def _encrypt_asym(self, data):
-        ''' Placeholder asymmetric encryptor.
-        
-        Data should be bytes-like. Public key should be a dictionary 
-        formatted with all necessary components for a public key.
-        '''
-        cipher = OAEP.new(self._encryption_key)
-        return cipher.encrypt(data)
-        
-    @classmethod
-    def _decrypt(self, secret, data):
-        ''' Placeholder symmetric decryptor.
-        
-        Handle multiple ciphersuites by having a thirdpartyidentity for
-        whichever author created it, and calling their decrypt instead.
-        '''
-        # Courtesy of pycryptodome's API limitations:
-        if not isinstance(data, bytes):
-            data = bytes(data)
-        # Convert the secret's seed (nonce) into an integer for pycryptodome
-        ctr_start = int.from_bytes(secret.seed, byteorder='big')
-        ctr = Counter.new(nbits=128, initial_value=ctr_start)
-        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
-        return cipher.decrypt(data)
-        
-    @classmethod
-    def _encrypt(self, secret, data):
-        ''' Symmetric encryptor.
-        '''
-        # Courtesy of pycryptodome's API limitations:
-        if not isinstance(data, bytes):
-            data = bytes(data)
-        # Convert the secret's seed (nonce) into an integer for pycryptodome
-        ctr_start = int.from_bytes(secret.seed, byteorder='big')
-        ctr = Counter.new(nbits=128, initial_value=ctr_start)
-        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
-        return cipher.encrypt(data)
 
 
 # Signature constants.
@@ -725,8 +661,6 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
     # Well it's not exactly repeating yourself, though it does mean there
     # are sorta two ways to perform decryption. Best practice = always decrypt
     # using the author's ThirdPersonIdentity
-    _encrypt = _3PID._encrypt
-    _decrypt = _3PID._decrypt
         
     @classmethod
     def _generate_third_person(cls, keys, address_algo):
@@ -754,8 +688,37 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
         nonce = get_random_bytes(16)
         return super().new_secret(key=key, seed=nonce)
         
+    @classmethod
+    def _encrypt(cls, secret, data):
+        ''' Symmetric encryptor.
+        '''
+        # Courtesy of pycryptodome's API limitations:
+        if not isinstance(data, bytes):
+            data = bytes(data)
+        # Convert the secret's seed (nonce) into an integer for pycryptodome
+        ctr_start = int.from_bytes(secret.seed, byteorder='big')
+        ctr = Counter.new(nbits=128, initial_value=ctr_start)
+        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
+        return cipher.encrypt(data)
+        
+    @classmethod
+    def _decrypt(cls, secret, data):
+        ''' Symmetric decryptor.
+        
+        Handle multiple ciphersuites by having a thirdpartyidentity for
+        whichever author created it, and calling their decrypt instead.
+        '''
+        # Courtesy of pycryptodome's API limitations:
+        if not isinstance(data, bytes):
+            data = bytes(data)
+        # Convert the secret's seed (nonce) into an integer for pycryptodome
+        ctr_start = int.from_bytes(secret.seed, byteorder='big')
+        ctr = Counter.new(nbits=128, initial_value=ctr_start)
+        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
+        return cipher.decrypt(data)
+        
     def _sign(self, data):
-        ''' Placeholder signing method.
+        ''' Signing method.
         '''
         h = _FrozenSHA512(data)
         signer = PSS.new(
@@ -764,6 +727,35 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
             salt_bytes=_PSS_SALT_LENGTH
         )
         return signer.sign(h)
+       
+    def _verify(self, public, signature, data):
+        ''' Verifies an author's signature against bites. Errors out if 
+        unsuccessful. Returns True if successful.
+        
+        Data must be bytes-like. public_key should be a dictionary 
+        formatted with all necessary components for a public key (?).
+        Signature must be bytes-like.
+        '''
+        self._typecheck_thirdparty(public)
+        
+        h = _FrozenSHA512(data)
+        signer = PSS.new(self._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)
+        try:
+            signer.verify(h, signature)
+        except ValueError as e:
+            raise SecurityError('Failed to verify signature.') from e
+            
+        return True
+        
+    def _encrypt_asym(self, public, data):
+        ''' Placeholder asymmetric encryptor.
+        
+        Data should be bytes-like. Public key should be a dictionary 
+        formatted with all necessary components for a public key.
+        '''
+        self._typecheck_thirdparty(public)
+        cipher = OAEP.new(public._encryption_key)
+        return cipher.encrypt(data)
         
     def _decrypt_asym(self, data):
         ''' Placeholder asymmetric decryptor.
@@ -807,3 +799,20 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
         # Do this "just in case" to prevent accidental future updates
         del h
         return d
+        
+    @classmethod
+    def _verify_mac(cls, key, mac, data):
+        ''' Verify an existing MAC.
+        '''
+        h = HMAC.new(
+            key = key,
+            msg = data,
+            digestmod = SHA512
+        )
+        try:
+            h.verify(mac)
+        except ValueError as e:
+            raise SecurityError('Failed to verify MAC.') from e
+            
+        return True
+        

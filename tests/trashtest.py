@@ -124,22 +124,40 @@ def run():
     debind2_guid, debind2 = first_id_1.make_debind(bind2_guid)
     debind2d_guid, debind2d = first_id_1.make_debind(bind2d_guid)
     
-    # Test out some asymmetric shenanigans
-    asym1 = fake_first_id._make_asym(
+    # Asymmetric requests
+    areq1_guid, areq1 = fake_first_id.make_request(
         recipient = fake_third_id,
-        plaintext = b'Ignored'
+        target = obj1_guid,
+        secret = secret1
     )
     
-    # Test out some asymmetric shenanigans
-    asym2 = first_id_1._make_asym(
+    areq2_guid, areq2 = first_id_1.make_request(
         recipient = third_id_1,
-        plaintext = b'Ignored'
+        target = obj2_guid,
+        secret = secret2
     )
     
-    print('------------------------------------------------------------------')
-    print(bytes(asym1.packed))
-    print('------------------------------------------------------------------')
-    print(bytes(asym2.packed))
+    # Asymmetric acks
+    aack1_guid, aack1 = fake_first_id.make_ack(
+        recipient = fake_third_id,
+        target = areq1_guid
+    )
+    
+    aack2_guid, aack2 = first_id_1.make_ack(
+        recipient = third_id_1,
+        target = areq2_guid
+    )
+    
+    # Asymmetric naks
+    anak1_guid, anak1 = fake_first_id.make_nak(
+        recipient = fake_third_id,
+        target = areq1_guid
+    )
+    
+    anak2_guid, anak2 = first_id_1.make_nak(
+        recipient = third_id_1,
+        target = areq2_guid
+    )
     
     
     # -------------------------------------------------------------------------

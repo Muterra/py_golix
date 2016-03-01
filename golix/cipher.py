@@ -132,6 +132,10 @@ from ._getlow import GOBD
 from ._getlow import GDXX
 from ._getlow import GARQ
 
+from ._getlow import AsymRequest
+from ._getlow import AsymAck
+from ._getlow import AsymNak
+
 # Some globals
 DEFAULT_ADDRESSER = 1
 DEFAULT_CIPHER = 1
@@ -207,6 +211,79 @@ class _IdentityBase(metaclass=abc.ABCMeta):
         if secret.cipher != cls._ciphersuite:
             return False
         return True
+    
+    
+class _ThirdPersonBase(metaclass=abc.ABCMeta):
+    @classmethod
+    def from_keys(cls, keys, address_algo):
+        try:
+            # Turn them into bytes first.
+            packed_keys = cls._pack_keys(keys)
+        except (KeyError, TypeError) as e:
+            raise RuntimeError(
+                'Generating ID from existing keys requires dict-like obj '
+                'with "signature", "encryption", and "exchange" keys.'
+            ) from e
+            
+        gidc = GIDC( 
+            signature_key=packed_keys['signature'],
+            encryption_key=packed_keys['encryption'],
+            exchange_key=packed_keys['exchange']
+        )
+        gidc.pack(cipher=cls._ciphersuite, address_algo=address_algo)
+        author_guid = gidc.guid
+        self = cls(keys=keys, author_guid=author_guid)
+        self.packed = gidc.packed
+        return self
+    
+    def load_geoc(self, secret, geoc):
+        # Handle loading a raw geoc, if that's what's passed
+        try:
+            memoryview(geoc)
+            geoc = GEOC.unpack(geoc)
+        except TypeError:
+            pass
+        
+        signature = geoc.signature
+        self._verify(signature, geoc.guid.address)
+        plaintext = self._decrypt(secret, geoc.payload)
+        # This will need to be converted into a namedtuple or something
+        return geoc.guid, plaintext
+        
+    @classmethod
+    @abc.abstractmethod
+    def _pack_keys(cls, keys):
+        ''' Convert self.keys from objects used for crypto operations
+        into bytes-like objects suitable for output into a GIDC.
+        '''
+        pass
+        
+    @abc.abstractmethod
+    def _verify(self, signature, data):
+        ''' Verifies an author's signature against bites. Errors out if 
+        unsuccessful. Returns True if successful.
+        '''
+        pass
+        
+    @abc.abstractmethod
+    def _encrypt_asym(self, data):
+        ''' Placeholder asymmetric encryptor.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _decrypt(self, secret, data):
+        ''' Placeholder symmetric decryptor.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _encrypt(self, data):
+        ''' Placeholder symmetric encryptor.
+        '''
+        pass
         
         
 class _FirstPersonBase(metaclass=abc.ABCMeta):
@@ -287,15 +364,6 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         return gdxx.guid, gdxx.packed
         
     def make_request(self, secret, target, recipient):
-        pass
-        
-    def make_ack(self, target, recipient, status=0):
-        pass
-        
-    def make_nak(self, target, recipient, status=0):
-        pass
-        
-    def _make_asym(self, recipient, plaintext):
         # Type check the partner. Must be ThirdPersonIdentityX or similar.
         if not isinstance(recipient, self._3PID):
             raise TypeError(
@@ -303,6 +371,59 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
                 'with the FirstPersonIdentity initiating the request/ack/nak.'
             )
         
+        request = AsymRequest(
+            author = self.author_guid,
+            target = target,
+            secret = secret
+        )
+        request.pack()
+        garq = self._make_asym(
+            recipient = recipient,
+            plaintext = request.packed
+        )
+        return garq.guid, garq.packed
+        
+    def make_ack(self, target, recipient, status=0):
+        # Type check the partner. Must be ThirdPersonIdentityX or similar.
+        if not isinstance(recipient, self._3PID):
+            raise TypeError(
+                'Recipient must be a ThirdPersonIdentity of compatible type '
+                'with the FirstPersonIdentity initiating the request/ack/nak.'
+            )
+        
+        ack = AsymAck(
+            author = self.author_guid,
+            target = target,
+            status = status
+        )
+        ack.pack()
+        garq = self._make_asym(
+            recipient = recipient,
+            plaintext = ack.packed
+        )
+        return garq.guid, garq.packed
+        
+    def make_nak(self, target, recipient, status=0):
+        # Type check the partner. Must be ThirdPersonIdentityX or similar.
+        if not isinstance(recipient, self._3PID):
+            raise TypeError(
+                'Recipient must be a ThirdPersonIdentity of compatible type '
+                'with the FirstPersonIdentity initiating the request/ack/nak.'
+            )
+        
+        nak = AsymNak(
+            author = self.author_guid,
+            target = target,
+            status = status
+        )
+        nak.pack()
+        garq = self._make_asym(
+            recipient = recipient,
+            plaintext = nak.packed
+        )
+        return garq.guid, garq.packed
+        
+    def _make_asym(self, recipient, plaintext):
         # Convert the plaintext to a proper payload and create a garq from it
         payload = recipient._encrypt_asym(plaintext)
         del plaintext
@@ -382,79 +503,6 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def _mac(cls, key, data):
         ''' Generate a MAC for data using key.
-        '''
-        pass
-    
-    
-class _ThirdPersonBase(metaclass=abc.ABCMeta):
-    @classmethod
-    def from_keys(cls, keys, address_algo):
-        try:
-            # Turn them into bytes first.
-            packed_keys = cls._pack_keys(keys)
-        except (KeyError, TypeError) as e:
-            raise RuntimeError(
-                'Generating ID from existing keys requires dict-like obj '
-                'with "signature", "encryption", and "exchange" keys.'
-            ) from e
-            
-        gidc = GIDC( 
-            signature_key=packed_keys['signature'],
-            encryption_key=packed_keys['encryption'],
-            exchange_key=packed_keys['exchange']
-        )
-        gidc.pack(cipher=cls._ciphersuite, address_algo=address_algo)
-        author_guid = gidc.guid
-        self = cls(keys=keys, author_guid=author_guid)
-        self.packed = gidc.packed
-        return self
-    
-    def load_geoc(self, secret, geoc):
-        # Handle loading a raw geoc, if that's what's passed
-        try:
-            memoryview(geoc)
-            geoc = GEOC.unpack(geoc)
-        except TypeError:
-            pass
-        
-        signature = geoc.signature
-        self._verify(signature, geoc.guid.address)
-        plaintext = self._decrypt(secret, geoc.payload)
-        # This will need to be converted into a namedtuple or something
-        return geoc.guid, plaintext
-        
-    @classmethod
-    @abc.abstractmethod
-    def _pack_keys(cls, keys):
-        ''' Convert self.keys from objects used for crypto operations
-        into bytes-like objects suitable for output into a GIDC.
-        '''
-        pass
-        
-    @abc.abstractmethod
-    def _verify(self, signature, data):
-        ''' Verifies an author's signature against bites. Errors out if 
-        unsuccessful. Returns True if successful.
-        '''
-        pass
-        
-    @abc.abstractmethod
-    def _encrypt_asym(self, data):
-        ''' Placeholder asymmetric encryptor.
-        '''
-        pass
-        
-    @classmethod
-    @abc.abstractmethod
-    def _decrypt(self, secret, data):
-        ''' Placeholder symmetric decryptor.
-        '''
-        pass
-        
-    @classmethod
-    @abc.abstractmethod
-    def _encrypt(self, data):
-        ''' Placeholder symmetric encryptor.
         '''
         pass
     

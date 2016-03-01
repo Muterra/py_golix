@@ -933,8 +933,11 @@ class _AsymBase():
         return self._control['author']
         
     @author.setter
-    def author(self, value):
-        self._control['author'] = value
+    def author(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Author must be type Guid or similar.')
+
+        self._control['author'] = guid
         
     @property
     def magic(self):
@@ -977,8 +980,11 @@ class AsymRequest(_AsymBase):
             raise AttributeError('Target not yet defined.') from e
             
     @target.setter
-    def target(self, value):
-        self._control['payload']['target'] = value
+    def target(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Target must be type Guid or similar.')
+
+        self._control['payload']['target'] = guid
             
     @property
     def secret(self):
@@ -1026,8 +1032,11 @@ class AsymAck(_AsymBase):
             raise AttributeError('Target not yet defined.') from e
             
     @target.setter
-    def target(self, value):
-        self._control['payload']['target'] = value
+    def target(self, guid):
+        if not _typecheck_guid(guid):
+            raise TypeError('Target must be type Guid or similar.')
+
+        self._control['payload']['target'] = guid
             
     @property
     def status(self):

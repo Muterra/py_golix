@@ -124,6 +124,27 @@ def run():
     debind2_guid, debind2 = first_id_1.make_debind(bind2_guid)
     debind2d_guid, debind2d = first_id_1.make_debind(bind2d_guid)
     
+    # Test out some asymmetric shenanigans
+    asym1 = fake_first_id._make_asym(
+        recipient = fake_third_id,
+        plaintext = b'Ignored'
+    )
+    
+    # Test out some asymmetric shenanigans
+    asym2 = first_id_1._make_asym(
+        recipient = third_id_1,
+        plaintext = b'Ignored'
+    )
+    
+    print('------------------------------------------------------------------')
+    print(bytes(asym1.packed))
+    print('------------------------------------------------------------------')
+    print(bytes(asym2.packed))
+    
+    
+    # -------------------------------------------------------------------------
+    # Unpacking and retrieval tests
+    
     # Normal unpacking operation for first
     # Should add something within firstpartyidentity that figures out the
     # author for you, so you don't have to do this bit.

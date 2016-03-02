@@ -70,14 +70,6 @@ Some initial temporary thoughts:
     than this library.
 8. Algorithm precedence order should be defined globally, but capable
     of being overwritten
-
-Some more temporary thoughts:
-1. move all ciphersuite stuff into identities
-2. put all of the generic operations like _sign into suite-dependent methods
-3. Reference those operations from the first/thirdperson base class
-4. Add methods like "create", "bind", "handshake", etc, to identities base
-    class, creating the appropriate ex. GEOC objects and returning them,
-    potentially along with a guid and (for GEOC specifically) a secret
 '''
 
 # Control * imports
@@ -219,7 +211,7 @@ class _IdentityBase(metaclass=abc.ABCMeta):
         return True
     
     
-class _ThirdPersonBase(metaclass=abc.ABCMeta):
+class _SecondPartyBase(metaclass=abc.ABCMeta):
     @classmethod
     def from_keys(cls, keys, address_algo):
         try:
@@ -251,7 +243,7 @@ class _ThirdPersonBase(metaclass=abc.ABCMeta):
         pass
         
         
-class _FirstPersonBase(metaclass=abc.ABCMeta):
+class _FirstPartyBase(metaclass=abc.ABCMeta):
     DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
     
     def __init__(self, keys=None, author_guid=None, address_algo='default', *args, **kwargs):
@@ -271,26 +263,26 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         # Generate a new identity
         else:
             keys = self._generate_keys()
-            self._third_party = self._generate_third_person(keys, self.address_algo)
-            author_guid = self._third_party.author_guid
+            self._second_party = self._generate_second_party(keys, self.address_algo)
+            author_guid = self._second_party.author_guid
             
         # Now dispatch super() with the adjusted keys, author_guid
         super().__init__(keys=keys, author_guid=author_guid, *args, **kwargs)
         
     @classmethod
     def _typecheck_thirdparty(cls, obj):
-        # Type check the partner. Must be ThirdPersonIdentityX or similar.
-        if not isinstance(obj, cls._3PID):
+        # Type check the partner. Must be SecondPartyIdentityX or similar.
+        if not isinstance(obj, cls._2PID):
             raise TypeError(
-                'Object must be a ThirdPersonIdentity of compatible type '
-                'with the FirstPersonIdentity initiating the request/ack/nak.'
+                'Object must be a SecondPartyIdentity of compatible type '
+                'with the FirstPartyIdentity initiating the request/ack/nak.'
             )
         else:
             return True
     
     @property
-    def third_party(self):
-        return self._third_party
+    def second_party(self):
+        return self._second_party
          
     def make_object(self, secret, plaintext):
         if not self._typecheck_secret(secret):
@@ -435,8 +427,25 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def receive_bind_static(self, binder, binding):
         if not isinstance(binding, GOBS):
             raise TypeError(
-                'Obj must be an unpacked GOBS, for example, as returned from '
-                'unpack_bind_static.'
+                'Binding must be an unpacked GOBS, for example, as returned '
+                'from unpack_bind_static.'
+            )
+        self._typecheck_thirdparty(binder)
+        
+        signature = binding.signature
+        self._verify(binder, signature, binding.guid.address)
+        # This will need to be converted into a namedtuple or something
+        return binding.guid, binding.target
+        
+    def unpack_bind_dynamic(self, packed):
+        gobd = GOBD.unpack(packed)
+        return gobd.binder, gobd
+    
+    def receive_bind_dynamic(self, binder, binding):
+        if not isinstance(binding, GOBD):
+            raise TypeError(
+                'Binding must be an unpacked GOBD, for example, as returned '
+                'from unpack_bind_dynamic.'
             )
         self._typecheck_thirdparty(binder)
         
@@ -513,7 +522,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         
     @classmethod
     @abc.abstractmethod
-    def _generate_third_person(cls, keys, address_algo):
+    def _generate_second_party(cls, keys, address_algo):
         ''' MUST ONLY be called when generating one from scratch, not 
         when loading one. Loading must always be done directly through
         loading a ThirdParty.
@@ -530,7 +539,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
             'encryption': <encryption key>,
             'exchange': <exchange key>
         }
-        In a form that is usable by the rest of the FirstPersonIdentity
+        In a form that is usable by the rest of the FirstPartyIdentity
         crypto functions (this is dependent on the individual class' 
         implementation, ex its crypto library).
         '''
@@ -605,7 +614,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         pass
     
         
-class ThirdPersonIdentity0(_ThirdPersonBase, _IdentityBase):
+class SecondPartyIdentity0(_SecondPartyBase, _IdentityBase):
     _ciphersuite = 0
         
     @classmethod
@@ -613,29 +622,29 @@ class ThirdPersonIdentity0(_ThirdPersonBase, _IdentityBase):
         return keys
         
         
-class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
+class FirstPartyIdentity0(_FirstPartyBase, _IdentityBase):
     ''' FOR TESTING PURPOSES ONLY. 
     
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
     
-    NOTE THAT INHERITANCE ORDER MATTERS! Must be first a FirstPerson, 
+    NOTE THAT INHERITANCE ORDER MATTERS! Must be first a FirstParty, 
     and second an Identity.
     '''
     _ciphersuite = 0
-    _3PID = ThirdPersonIdentity0
+    _2PID = SecondPartyIdentity0
         
     # Well it's not exactly repeating yourself, though it does mean there
     # are sorta two ways to perform decryption. Best practice = always decrypt
-    # using the author's ThirdPersonIdentity
+    # using the author's SecondPartyIdentity
         
     @classmethod
-    def _generate_third_person(cls, keys, address_algo):
+    def _generate_second_party(cls, keys, address_algo):
         keys = {}
         keys['signature'] = _dummy_pubkey
         keys['encryption'] = _dummy_pubkey
         keys['exchange'] = _dummy_pubkey
-        return cls._3PID.from_keys(keys, address_algo)
+        return cls._2PID.from_keys(keys, address_algo)
         
     def _generate_keys(self):
         keys = {}
@@ -730,7 +739,7 @@ class FirstPersonIdentity0(_FirstPersonBase, _IdentityBase):
         return True
         
 
-class ThirdPersonIdentity1(_ThirdPersonBase, _IdentityBase): 
+class SecondPartyIdentity1(_SecondPartyBase, _IdentityBase): 
     _ciphersuite = 1  
         
     @classmethod
@@ -756,25 +765,25 @@ _PSS_MGF = lambda x, y: MGF1(x, y, SHA512)
 # or, on the receiving end:
 # PSS.new(public_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).verify(h, signature)
 # Verification returns nothing (=None) if successful, raises ValueError if not
-class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
+class FirstPartyIdentity1(_FirstPartyBase, _IdentityBase):
     ''' ... Hmmm
     '''
     _ciphersuite = 1
-    _3PID = ThirdPersonIdentity1
+    _2PID = SecondPartyIdentity1
         
     # Well it's not exactly repeating yourself, though it does mean there
     # are sorta two ways to perform decryption. Best practice = always decrypt
-    # using the author's ThirdPersonIdentity
+    # using the author's SecondPartyIdentity
         
     @classmethod
-    def _generate_third_person(cls, keys, address_algo):
+    def _generate_second_party(cls, keys, address_algo):
         pubkeys = {
             'signature': keys['signature'].publickey(),
             'encryption': keys['encryption'].publickey(),
             'exchange': keys['exchange'].get_public()
         } 
         del keys
-        return cls._3PID.from_keys(keys=pubkeys, address_algo=address_algo)
+        return cls._2PID.from_keys(keys=pubkeys, address_algo=address_algo)
         
     @classmethod
     def _generate_keys(cls):

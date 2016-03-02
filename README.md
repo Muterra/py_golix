@@ -51,9 +51,10 @@ And these metrics are unknown:
 
 # Todo
 
-+ Create various bytes-like "plaintext" objects (in particular, a GEOC one) that have an attribute for the guid of the object
++ Reassess return API for receiving things as a FirstPersonID. Should it return a tuple, as it is right now, or not? Should the object return be different from the payload return?
 + Change hash generation to use hash.update method, and then finally call a .finalize
 + Test vectors for all crypto operations
++ Need ThirdPartyID for servers
 
 ## Done
 

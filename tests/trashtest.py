@@ -40,10 +40,10 @@ import collections
 from golix import Guid
 
 # These are abnormal (don't use in production) inclusions.
-from golix.cipher import FirstPersonIdentity0
-from golix.cipher import ThirdPersonIdentity0
-from golix.cipher import FirstPersonIdentity1
-from golix.cipher import ThirdPersonIdentity1
+from golix.cipher import FirstPartyIdentity0
+from golix.cipher import SecondPartyIdentity0
+from golix.cipher import FirstPartyIdentity1
+from golix.cipher import SecondPartyIdentity1
 
 from golix._spec import _dummy_signature
 from golix._spec import _dummy_mac
@@ -61,18 +61,18 @@ def run():
     known_third_parties = {}
     
     # Dummy first-person identity tests with real addresser.
-    fake_first_id = FirstPersonIdentity0(address_algo=1)
-    fake_third_id = fake_first_id.third_party
+    fake_first_id = FirstPartyIdentity0(address_algo=1)
+    fake_third_id = fake_first_id.second_party
     
     # Keep them around for later!
     known_third_parties[fake_third_id.author_guid] = fake_third_id
     
     # -------------------------------------------------------------------------
     # Try it for rls
-    first_id_1 = FirstPersonIdentity1(address_algo=1)
-    first_id_2 = FirstPersonIdentity1(address_algo=1)
-    third_id_1 = first_id_1.third_party
-    third_id_2 = first_id_2.third_party
+    first_id_1 = FirstPartyIdentity1(address_algo=1)
+    first_id_2 = FirstPartyIdentity1(address_algo=1)
+    third_id_1 = first_id_1.second_party
+    third_id_2 = first_id_2.second_party
     
     # -------------------------------------------------------------------------
     # Test them on GEOCs:

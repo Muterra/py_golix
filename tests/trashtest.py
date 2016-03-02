@@ -79,7 +79,9 @@ def run():
     
     # Try it for rls
     first_id_1 = FirstPersonIdentity1(address_algo=1)
+    first_id_2 = FirstPersonIdentity1(address_algo=1)
     third_id_1 = first_id_1.third_party
+    third_id_2 = first_id_2.third_party
     
     # Test them on GEOCs:
     _dummy_payload = b'[[ Hello, world? ]]'
@@ -132,7 +134,7 @@ def run():
     )
     
     areq2_guid, areq2 = first_id_1.make_request(
-        recipient = third_id_1,
+        recipient = third_id_2,
         target = obj2_guid,
         secret = secret2
     )
@@ -144,7 +146,7 @@ def run():
     )
     
     aack2_guid, aack2 = first_id_1.make_ack(
-        recipient = third_id_1,
+        recipient = third_id_2,
         target = areq2_guid
     )
     
@@ -155,7 +157,7 @@ def run():
     )
     
     anak2_guid, anak2 = first_id_1.make_nak(
-        recipient = third_id_1,
+        recipient = third_id_2,
         target = areq2_guid
     )
     
@@ -173,8 +175,18 @@ def run():
     # Extra-normal unpacking operation for third.
     # Note that the author lookup ideally shouldn't be necessary if you already 
     # know who it is.
-    authorguid_2, geoc2 = first_id_1.unpack_object(obj2)
-    guid_2, geoc_2r_plaintext = first_id_1.receive_object(third_id_1, secret2, geoc2)
+    authorguid_2, geoc2 = first_id_2.unpack_object(obj2)
+    guid_2, geoc_2r_plaintext = first_id_2.receive_object(third_id_1, secret2, geoc2)
+    
+    authorguid_2, areq2_up = first_id_2.unpack_request(areq2)
+    areq2_rec = first_id_2.receive_request(third_id_1, areq2_up)
+    
+    authorguid_2, aack2_up = first_id_2.unpack_request(aack2)
+    aack2_rec = first_id_2.receive_request(third_id_1, aack2_up)
+    
+    authorguid_2, anak2_up = first_id_2.unpack_request(anak2)
+    anak2_rec = first_id_2.receive_request(third_id_1, anak2_up)
+    
     
     # import IPython
     # IPython.embed()

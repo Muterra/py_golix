@@ -34,6 +34,7 @@ golix: A python library for Golix protocol object manipulation.
 
 '''
 import abc
+from collections import namedtuple
 from Crypto.Hash import SHA512
 
 from smartyparse import SmartyParser
@@ -358,3 +359,12 @@ def hash_lookup(num):
         return ADDRESS_ALGOS[num]
     except KeyError as e:
         raise ValueError('Address algo "' + str(num) + '" is undefined.') from e
+
+
+# ----------------------------------------------------------------------
+# Various response objects
+
+
+PipeRequest = namedtuple('PipeRequest', ['author', 'target', 'secret'])
+PipeAck = namedtuple('PipeAck', ['author', 'target', 'status'])
+PipeNak = namedtuple('PipeNak', ['author', 'target', 'status'])

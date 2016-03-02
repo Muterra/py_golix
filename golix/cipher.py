@@ -112,9 +112,17 @@ from Crypto.Hash import HMAC
 from donna25519 import PrivateKey as ECDHPrivate
 from donna25519 import PublicKey as ECDHPublic
 
+from smartyparse import ParseError
+
 # Interpackage dependencies
 from .utils import Guid
 from .utils import SecurityError
+from .utils import ADDRESS_ALGOS
+from .utils import Secret
+
+from .utils import PipeRequest
+from .utils import PipeAck
+from .utils import PipeNak
 
 from .utils import _dummy_asym
 from .utils import _dummy_mac
@@ -122,8 +130,6 @@ from .utils import _dummy_signature
 from .utils import _dummy_address
 from .utils import _dummy_guid
 from .utils import _dummy_pubkey
-from .utils import ADDRESS_ALGOS
-from .utils import Secret
 
 from ._getlow import GIDC
 from ._getlow import GEOC
@@ -397,10 +403,71 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         )
         return garq
         
-    def receive_request(self, request):
-        ''' Handles the packed request
+    def unpack_request(self, packed):
+        garq = GARQ.unpack(packed)
+        plaintext = self._decrypt_asym(garq.payload)
+        
+        # Try all object handlers available for asymmetric payloads
+        parse_success = False
+        # Could do this with a loop, but it gets awkward when trying to
+        # assign stuff to the resulting object.
+        try:
+            unpacked = AsymRequest.unpack(plaintext)
+            request = PipeRequest(
+                author = unpacked.author,
+                target = unpacked.target, 
+                secret = unpacked.secret
+            )
+        except ParseError:
+            try:
+                unpacked = AsymAck.unpack(plaintext)
+                request = PipeAck(
+                    author = unpacked.author,
+                    target = unpacked.target, 
+                    status = unpacked.status
+                )
+            except ParseError:
+                try:
+                    unpacked = AsymNak.unpack(plaintext)
+                    request = PipeNak(
+                        author = unpacked.author,
+                        target = unpacked.target, 
+                        status = unpacked.status
+                    )
+                except ParseError:
+                    raise SecurityError('Could not securely unpack request.')
+            
+        garq._plaintext = request
+        
+        return request.author, garq
+        
+    def receive_request(self, public, request):
+        ''' Verifies the request and exposes its contents.
         '''
-        pass
+        # Typecheck all the things
+        self._typecheck_thirdparty(public)
+        # Also make sure the request is something we've already unpacked
+        if not isinstance(request, GARQ):
+            raise TypeError(
+                'Request must be an unpacked GARQ, as returned from '
+                'unpack_request.'
+            )
+        try:
+            plaintext = request._plaintext
+        except AttributeError as e:
+            raise TypeError(
+                'Request must be an unpacked GARQ, as returned from '
+                'unpack_request.'
+            ) from e
+            
+        self._verify_mac(
+            key = self._derive_shared(public),
+            data = request.guid.address,
+            mac = request.signature
+        )
+        
+        del request._plaintext
+        return plaintext
         
     def unpack_object(self, packed):
         geoc = GEOC.unpack(packed)
@@ -739,7 +806,7 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
         self._typecheck_thirdparty(public)
         
         h = _FrozenSHA512(data)
-        signer = PSS.new(self._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)
+        signer = PSS.new(public._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)
         try:
             signer.verify(h, signature)
         except ValueError as e:
@@ -804,6 +871,9 @@ class FirstPersonIdentity1(_FirstPersonBase, _IdentityBase):
     def _verify_mac(cls, key, mac, data):
         ''' Verify an existing MAC.
         '''
+        mac = bytes(mac)
+        data = bytes(data)
+        
         h = HMAC.new(
             key = key,
             msg = data,

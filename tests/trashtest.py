@@ -126,39 +126,57 @@ def run():
     debind2_guid, debind2 = first_id_1.make_debind(bind2_guid)
     debind2d_guid, debind2d = first_id_1.make_debind(bind2d_guid)
     
-    # Asymmetric requests
-    areq1_guid, areq1 = fake_first_id.make_request(
-        recipient = fake_third_id,
+    # Asymmetric handshakes
+    ahand1 = fake_first_id.make_handshake(
         target = obj1_guid,
         secret = secret1
     )
+    areq1a_guid, areq1a = fake_first_id.make_request(
+        recipient = fake_third_id,
+        request = ahand1
+    )
     
-    areq2_guid, areq2 = first_id_1.make_request(
-        recipient = third_id_2,
+    ahand2 = first_id_1.make_handshake(
         target = obj2_guid,
         secret = secret2
     )
-    
-    # Asymmetric acks
-    aack1_guid, aack1 = fake_first_id.make_ack(
-        recipient = fake_third_id,
-        target = areq1_guid
-    )
-    
-    aack2_guid, aack2 = first_id_1.make_ack(
+    areq2a_guid, areq2a = first_id_1.make_request(
         recipient = third_id_2,
-        target = areq2_guid
+        request = ahand2
     )
     
-    # Asymmetric naks
-    anak1_guid, anak1 = fake_first_id.make_nak(
+    # Asymmetric ack
+    aack1 = fake_first_id.make_ack(
+        target = areq1a_guid
+    )
+    areq1b_guid, areq1b = fake_first_id.make_request(
         recipient = fake_third_id,
-        target = areq1_guid
+        request = aack1
     )
     
-    anak2_guid, anak2 = first_id_1.make_nak(
+    aack2 = first_id_1.make_ack(
+        target = areq2a_guid
+    )
+    areq2b_guid, areq2b = first_id_1.make_request(
         recipient = third_id_2,
-        target = areq2_guid
+        request = aack2
+    )
+    
+    # Asymmetric nak
+    anak1 = fake_first_id.make_nak(
+        target = areq1a_guid
+    )
+    areq1c_guid, areq1c = fake_first_id.make_request(
+        recipient = fake_third_id,
+        request = anak1
+    )
+    
+    anak2 = first_id_1.make_nak(
+        target = areq2a_guid
+    )
+    areq2c_guid, areq2c = first_id_1.make_request(
+        recipient = third_id_2,
+        request = anak2
     )
     
     
@@ -178,13 +196,16 @@ def run():
     authorguid_2, geoc2 = first_id_2.unpack_object(obj2)
     guid_2, geoc_2r_plaintext = first_id_2.receive_object(third_id_1, secret2, geoc2)
     
-    authorguid_2, areq2_up = first_id_2.unpack_request(areq2)
+    
+    # Test all of the real (fake won't work because of the fake asym payload)
+    # asymmetric requests
+    authorguid_2, areq2_up = first_id_2.unpack_request(areq2a)
     areq2_rec = first_id_2.receive_request(third_id_1, areq2_up)
     
-    authorguid_2, aack2_up = first_id_2.unpack_request(aack2)
+    authorguid_2, aack2_up = first_id_2.unpack_request(areq2b)
     aack2_rec = first_id_2.receive_request(third_id_1, aack2_up)
     
-    authorguid_2, anak2_up = first_id_2.unpack_request(anak2)
+    authorguid_2, anak2_up = first_id_2.unpack_request(areq2c)
     anak2_rec = first_id_2.receive_request(third_id_1, anak2_up)
     
     

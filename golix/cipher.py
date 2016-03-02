@@ -339,52 +339,58 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         gdxx.pack_signature(signature)
         return gdxx.guid, gdxx.packed
         
-    def make_request(self, secret, target, recipient):
-        self._typecheck_thirdparty(recipient)
-        
-        request = GARQHandshake(
+    def make_handshake(self, secret, target):
+        return AsymHandshake(
             author = self.author_guid,
             target = target,
             secret = secret
         )
+        
+    def make_ack(self, target, status=0):
+        return AsymAck(
+            author = self.author_guid,
+            target = target,
+            status = status
+        )
+        
+    def make_nak(self, target, status=0):
+        return AsymNak(
+            author = self.author_guid,
+            target = target,
+            status = status
+        )
+        
+    def make_request(self, recipient, request):
+        self._typecheck_thirdparty(recipient)
+        
+        # I'm actually okay with this performance hit, since it forces some
+        # level of type checking here. Which is, I think, in this case, good.
+        if isinstance(request, AsymHandshake):
+            request = GARQHandshake(
+                author = request.author,
+                target = request.target,
+                secret = request.secret
+            )
+        elif isinstance(request, AsymAck):
+            request = GARQAck(
+                author = request.author,
+                target = request.target,
+                status = request.status
+            )
+        elif isinstance(request, AsymNak):
+            request = GARQNak(
+                author = request.author,
+                target = request.target,
+                status = request.status
+            )
+        else:
+            raise TypeError(
+                'Request must be an AsymHandshake, AsymAck, or AsymNak '
+                '(or subclass thereof).'
+            )
         request.pack()
-        garq = self._make_asym(
-            recipient = recipient,
-            plaintext = request.packed
-        )
-        return garq.guid, garq.packed
+        plaintext = request.packed
         
-    def make_ack(self, target, recipient, status=0):
-        self._typecheck_thirdparty(recipient)
-        
-        ack = GARQAck(
-            author = self.author_guid,
-            target = target,
-            status = status
-        )
-        ack.pack()
-        garq = self._make_asym(
-            recipient = recipient,
-            plaintext = ack.packed
-        )
-        return garq.guid, garq.packed
-        
-    def make_nak(self, target, recipient, status=0):
-        self._typecheck_thirdparty(recipient)
-        
-        nak = GARQNak(
-            author = self.author_guid,
-            target = target,
-            status = status
-        )
-        nak.pack()
-        garq = self._make_asym(
-            recipient = recipient,
-            plaintext = nak.packed
-        )
-        return garq.guid, garq.packed
-        
-    def _make_asym(self, recipient, plaintext):
         # Convert the plaintext to a proper payload and create a garq from it
         payload = self._encrypt_asym(recipient, plaintext)
         del plaintext
@@ -401,7 +407,8 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
                 data = garq.guid.address
             )
         )
-        return garq
+        
+        return garq.guid, garq.packed
         
     def unpack_request(self, packed):
         garq = GARQ.unpack(packed)

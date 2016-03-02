@@ -307,20 +307,20 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         # This will need to be converted into a namedtuple or something
         return geoc.guid, geoc.packed
         
-    def make_bind_static(self, guid):        
+    def make_bind_static(self, target):        
         gobs = GOBS(
             binder = self.author_guid,
-            target = guid
+            target = target
         )
         gobs.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(gobs.guid.address)
         gobs.pack_signature(signature)
         return gobs.guid, gobs.packed
         
-    def make_bind_dynamic(self, guid, address=None, history=None):
+    def make_bind_dynamic(self, target, address=None, history=None):
         gobd = GOBD(
             binder = self.author_guid,
-            target = guid,
+            target = target,
             dynamic_address = address,
             history = history
         )
@@ -329,10 +329,10 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         gobd.pack_signature(signature)
         return gobd.guid, gobd.packed, gobd.dynamic_address
         
-    def make_debind(self, guid):
+    def make_debind(self, target):
         gdxx = GDXX(
             debinder = self.author_guid,
-            target = guid
+            target = target
         )
         gdxx.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(gdxx.guid.address)
@@ -410,6 +410,41 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         
         return garq.guid, garq.packed
         
+    def unpack_object(self, packed):
+        geoc = GEOC.unpack(packed)
+        return geoc.author, geoc
+    
+    def receive_object(self, author, secret, obj):
+        if not isinstance(obj, GEOC):
+            raise TypeError(
+                'Obj must be an unpacked GEOC, for example, as returned from '
+                'unpack_object.'
+            )
+        self._typecheck_thirdparty(author)
+        
+        signature = obj.signature
+        self._verify(author, signature, obj.guid.address)
+        plaintext = self._decrypt(secret, obj.payload)
+        # This will need to be converted into a namedtuple or something
+        return obj.guid, plaintext
+        
+    def unpack_bind_static(self, packed):
+        gobs = GOBS.unpack(packed)
+        return gobs.binder, gobs
+    
+    def receive_bind_static(self, binder, binding):
+        if not isinstance(binding, GOBS):
+            raise TypeError(
+                'Obj must be an unpacked GOBS, for example, as returned from '
+                'unpack_bind_static.'
+            )
+        self._typecheck_thirdparty(binder)
+        
+        signature = binding.signature
+        self._verify(binder, signature, binding.guid.address)
+        # This will need to be converted into a namedtuple or something
+        return binding.guid, binding.target
+        
     def unpack_request(self, packed):
         garq = GARQ.unpack(packed)
         plaintext = self._decrypt_asym(garq.payload)
@@ -448,11 +483,11 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         
         return request.author, garq
         
-    def receive_request(self, public, request):
+    def receive_request(self, requestor, request):
         ''' Verifies the request and exposes its contents.
         '''
         # Typecheck all the things
-        self._typecheck_thirdparty(public)
+        self._typecheck_thirdparty(requestor)
         # Also make sure the request is something we've already unpacked
         if not isinstance(request, GARQ):
             raise TypeError(
@@ -468,30 +503,13 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
             ) from e
             
         self._verify_mac(
-            key = self._derive_shared(public),
+            key = self._derive_shared(requestor),
             data = request.guid.address,
             mac = request.signature
         )
         
         del request._plaintext
         return plaintext
-        
-    def unpack_object(self, packed):
-        geoc = GEOC.unpack(packed)
-        return geoc.author, geoc
-    
-    def receive_object(self, public, secret, obj):
-        if not isinstance(obj, GEOC):
-            raise TypeError(
-                'Obj must be an unpacked GEOC, for example, as returned from '
-                'unpack_object.'
-            )
-        
-        signature = obj.signature
-        self._verify(public, signature, obj.guid.address)
-        plaintext = self._decrypt(secret, obj.payload)
-        # This will need to be converted into a namedtuple or something
-        return obj.guid, plaintext
         
     @classmethod
     @abc.abstractmethod
@@ -504,6 +522,18 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         
     @abc.abstractmethod
     def _generate_keys(self):
+        ''' Create a set of keys for use in the identity.
+        
+        Must return a mapping of keys with the following values:
+        {
+            'signature': <signature key>,
+            'encryption': <encryption key>,
+            'exchange': <exchange key>
+        }
+        In a form that is usable by the rest of the FirstPersonIdentity
+        crypto functions (this is dependent on the individual class' 
+        implementation, ex its crypto library).
+        '''
         pass
     
     @classmethod

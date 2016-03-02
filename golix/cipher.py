@@ -120,9 +120,9 @@ from .utils import SecurityError
 from .utils import ADDRESS_ALGOS
 from .utils import Secret
 
-from .utils import PipeRequest
-from .utils import PipeAck
-from .utils import PipeNak
+from .utils import AsymHandshake
+from .utils import AsymAck
+from .utils import AsymNak
 
 from .utils import _dummy_asym
 from .utils import _dummy_mac
@@ -138,9 +138,9 @@ from ._getlow import GOBD
 from ._getlow import GDXX
 from ._getlow import GARQ
 
-from ._getlow import AsymRequest
-from ._getlow import AsymAck
-from ._getlow import AsymNak
+from ._getlow import GARQHandshake
+from ._getlow import GARQAck
+from ._getlow import GARQNak
 
 # Some globals
 DEFAULT_ADDRESSER = 1
@@ -342,7 +342,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def make_request(self, secret, target, recipient):
         self._typecheck_thirdparty(recipient)
         
-        request = AsymRequest(
+        request = GARQHandshake(
             author = self.author_guid,
             target = target,
             secret = secret
@@ -357,7 +357,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def make_ack(self, target, recipient, status=0):
         self._typecheck_thirdparty(recipient)
         
-        ack = AsymAck(
+        ack = GARQAck(
             author = self.author_guid,
             target = target,
             status = status
@@ -372,7 +372,7 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
     def make_nak(self, target, recipient, status=0):
         self._typecheck_thirdparty(recipient)
         
-        nak = AsymNak(
+        nak = GARQNak(
             author = self.author_guid,
             target = target,
             status = status
@@ -412,24 +412,24 @@ class _FirstPersonBase(metaclass=abc.ABCMeta):
         # Could do this with a loop, but it gets awkward when trying to
         # assign stuff to the resulting object.
         try:
-            unpacked = AsymRequest.unpack(plaintext)
-            request = PipeRequest(
+            unpacked = GARQHandshake.unpack(plaintext)
+            request = AsymHandshake(
                 author = unpacked.author,
                 target = unpacked.target, 
                 secret = unpacked.secret
             )
         except ParseError:
             try:
-                unpacked = AsymAck.unpack(plaintext)
-                request = PipeAck(
+                unpacked = GARQAck.unpack(plaintext)
+                request = AsymAck(
                     author = unpacked.author,
                     target = unpacked.target, 
                     status = unpacked.status
                 )
             except ParseError:
                 try:
-                    unpacked = AsymNak.unpack(plaintext)
-                    request = PipeNak(
+                    unpacked = GARQNak.unpack(plaintext)
+                    request = AsymNak(
                         author = unpacked.author,
                         target = unpacked.target, 
                         status = unpacked.status

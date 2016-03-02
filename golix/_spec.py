@@ -299,11 +299,11 @@ _garq.versions = set(_garq_lookup)
 # ----------------------------------------------------------------------
 # Asymmetric payload format blocks
 
-_asym_rq_payload = SmartyParser()
-_asym_rq_payload['target'] = generate_guid_parser()
-_asym_rq_payload['secret_length'] = ParseHelper(parsers.Int8(signed=False))
-_asym_rq_payload['secret'] = ParseHelper(parsers.Blob())
-_asym_rq_payload.link_length('secret', 'secret_length')
+_asym_hand_payload = SmartyParser()
+_asym_hand_payload['target'] = generate_guid_parser()
+_asym_hand_payload['secret_length'] = ParseHelper(parsers.Int8(signed=False))
+_asym_hand_payload['secret'] = ParseHelper(parsers.Blob())
+_asym_hand_payload.link_length('secret', 'secret_length')
 
 _asym_ak_payload = SmartyParser()
 _asym_ak_payload['target'] = generate_guid_parser()
@@ -313,12 +313,12 @@ _asym_nk_payload = SmartyParser()
 _asym_nk_payload['target'] = generate_guid_parser()
 _asym_nk_payload['status'] = ParseHelper(parsers.Int32(signed=False))
 
-_asym_rq = SmartyParser()
-_asym_rq['author'] = generate_guid_parser()
-_asym_rq['magic'] = ParseHelper(parsers.Literal(b'RQ'))
-_asym_rq['payload_length'] = ParseHelper(parsers.Int16(signed=False))
-_asym_rq['payload'] = _asym_rq_payload
-_asym_rq.link_length('payload', 'payload_length')
+_asym_hand = SmartyParser()
+_asym_hand['author'] = generate_guid_parser()
+_asym_hand['magic'] = ParseHelper(parsers.Literal(b'HS'))
+_asym_hand['payload_length'] = ParseHelper(parsers.Int16(signed=False))
+_asym_hand['payload'] = _asym_hand_payload
+_asym_hand.link_length('payload', 'payload_length')
 
 _asym_ak = SmartyParser()
 _asym_ak['author'] = generate_guid_parser()

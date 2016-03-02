@@ -41,7 +41,7 @@ from golix import Guid
 
 # These are abnormal (don't use in production) inclusions
 from golix._spec import _gidc, _geoc, _gobs, _gobd, _gdxx, _garq
-from golix._spec import _asym_rq, _asym_ak, _asym_nk, _asym_else
+from golix._spec import _asym_hand, _asym_ak, _asym_nk, _asym_else
 from golix.utils import _dummy_signature
 from golix.utils import _dummy_mac
 from golix.utils import _dummy_asym
@@ -155,16 +155,16 @@ def run():
     garq_1r = _garq.unpack(garq_1p)
     
     # Asymmetric payload blob tests.
-    asym_rq_1 = {
+    asym_hand_1 = {
         'author': _dummy_guid,
-        'magic': b'RQ',
+        'magic': b'HS',
         'payload': {
             'target': _dummy_guid,
             'secret': bytes(32)
         }
     }
-    asym_rq_1p = _asym_rq.pack(asym_rq_1)
-    asym_rq_1r = _asym_rq.unpack(asym_rq_1p)
+    asym_hand_1p = _asym_hand.pack(asym_hand_1)
+    asym_hand_1r = _asym_hand.unpack(asym_hand_1p)
     
     asym_ak_2 = {
         'author': _dummy_guid,

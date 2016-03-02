@@ -52,7 +52,7 @@ from ._spec import _gobs
 from ._spec import _gobd
 from ._spec import _gdxx
 from ._spec import _garq
-from ._spec import _asym_rq
+from ._spec import _asym_hand
 from ._spec import _asym_ak
 from ._spec import _asym_nk
 from ._spec import _asym_else
@@ -960,10 +960,10 @@ class _AsymBase():
         return self
 
 
-class AsymRequest(_AsymBase):
+class GARQHandshake(_AsymBase):
     ''' Asymmetric pipe request. Used as payload in GARQ objects.
     '''
-    PARSER = _asym_rq
+    PARSER = _asym_hand
     
     def __init__(self, target=None, secret=None, _control=None, *args, **kwargs):
         super().__init__(_control=_control, *args, **kwargs)
@@ -1011,7 +1011,7 @@ class AsymRequest(_AsymBase):
         return self
         
 
-class AsymAck(_AsymBase):
+class GARQAck(_AsymBase):
     ''' Asymmetric pipe acknowledgement. 
     Used as payload in GARQ objects.
     '''
@@ -1064,7 +1064,7 @@ class AsymAck(_AsymBase):
         return self
 
 
-class AsymNak(AsymAck):
+class GARQNak(GARQAck):
     ''' Asymmetric pipe non-acknowledgement. 
     Used as payload in GARQ objects.
     Other than magic, identical to AsymAck.
@@ -1072,7 +1072,7 @@ class AsymNak(AsymAck):
     PARSER = _asym_nk
 
 
-class AsymElse(_AsymBase):
+class GARQElse(_AsymBase):
     ''' Asymmetric arbitrary payload. Used as payload in GARQ objects.
     '''
     PARSER = _asym_else

@@ -46,10 +46,10 @@ from golix._getlow import GOBS
 from golix._getlow import GOBD
 from golix._getlow import GDXX
 from golix._getlow import GARQ
-from golix._getlow import AsymRequest
-from golix._getlow import AsymAck
-from golix._getlow import AsymNak
-from golix._getlow import AsymElse
+from golix._getlow import GARQHandshake
+from golix._getlow import GARQAck
+from golix._getlow import GARQNak
+from golix._getlow import GARQElse
 
 from golix.utils import Secret
 from golix.utils import _dummy_signature
@@ -61,7 +61,7 @@ from golix.utils import _dummy_guid
 
 # These are soon-to-be-removed abnormal imports
 from golix._spec import _gidc, _geoc, _gobs, _gobd, _gdxx, _garq
-from golix._spec import _asym_rq, _asym_ak, _asym_nk, _asym_else
+from golix._spec import _asym_hand, _asym_ak, _asym_nk, _asym_else
 
 # ###############################################
 # Testing
@@ -200,7 +200,7 @@ def run():
     garq_2r = GARQ.unpack(garq_2p)
     
     # Asym request testing
-    asrq_1 = AsymRequest(
+    asrq_1 = GARQHandshake(
         author=_dummy_author,
         target=_dummy_guid, 
         secret=Secret(
@@ -210,36 +210,36 @@ def run():
         ))
     asrq_1.pack()
     asrq_1p = asrq_1.packed
-    asrq_1r = AsymRequest.unpack(asrq_1p)
+    asrq_1r = GARQHandshake.unpack(asrq_1p)
     
     # Asym ack testing
-    asak_1 = AsymAck(
+    asak_1 = GARQAck(
         author=_dummy_author,
         target=_dummy_guid, 
         status=5
     )
     asak_1.pack()
     asak_1p = asak_1.packed
-    asak_1r = AsymAck.unpack(asak_1p)
+    asak_1r = GARQAck.unpack(asak_1p)
     
     # Asym ack testing
-    asnk_1 = AsymNak(
+    asnk_1 = GARQNak(
         author=_dummy_author,
         target=_dummy_guid, 
         status=7
     )
     asnk_1.pack()
     asnk_1p = asnk_1.packed
-    asnk_1r = AsymNak.unpack(asnk_1p)
+    asnk_1r = GARQNak.unpack(asnk_1p)
     
     # Asym else testing
-    asel_1 = AsymElse(
+    asel_1 = GARQElse(
         author=_dummy_author,
         payload=b'Hello world'
     )
     asel_1.pack()
     asel_1p = asel_1.packed
-    asel_1r = AsymElse.unpack(asel_1p)
+    asel_1r = GARQElse.unpack(asel_1p)
     
     # import IPython
     # IPython.embed()

@@ -209,6 +209,30 @@ class _IdentityBase(metaclass=abc.ABCMeta):
         if secret.cipher != cls._ciphersuite:
             return False
         return True
+        
+        
+class _ObjectHandlerBase():
+    ''' Base class for anything that needs to unpack Golix objects.
+    '''
+    @classmethod
+    def unpack_container(cls, packed):
+        geoc = GEOC.unpack(packed)
+        return geoc.author, geoc
+        
+    @classmethod
+    def unpack_bind_static(cls, packed):
+        gobs = GOBS.unpack(packed)
+        return gobs.binder, gobs
+        
+    @classmethod
+    def unpack_bind_dynamic(cls, packed):
+        gobd = GOBD.unpack(packed)
+        return gobd.binder, gobd
+        
+    @classmethod
+    def unpack_debind(cls, packed):
+        gdxx = GDXX.unpack(packed)
+        return gdxx.debinder, gdxx
     
     
 class _SecondPartyBase(metaclass=abc.ABCMeta):
@@ -243,7 +267,7 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
         pass
         
         
-class _FirstPartyBase(metaclass=abc.ABCMeta):
+class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
     DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
     
     def __init__(self, keys=None, author_guid=None, address_algo='default', *args, **kwargs):
@@ -271,11 +295,11 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         
     @classmethod
     def _typecheck_2ndparty(cls, obj):
-        # Type check the partner. Must be SecondPartyIdentityX or similar.
+        # Type check the partner. Must be SecondPartyX or similar.
         if not isinstance(obj, cls._2PID):
             raise TypeError(
-                'Object must be a SecondPartyIdentity of compatible type '
-                'with the FirstPartyIdentity initiating the request/ack/nak.'
+                'Object must be a SecondParty of compatible type '
+                'with the FirstParty initiating the request/ack/nak.'
             )
         else:
             return True
@@ -284,7 +308,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
     def second_party(self):
         return self._second_party
          
-    def make_object(self, secret, plaintext):
+    def make_container(self, secret, plaintext):
         if not self._typecheck_secret(secret):
             raise TypeError(
                 'Secret must be a properly-formatted Secret compatible with '
@@ -401,28 +425,20 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         )
         
         return garq.guid, garq.packed
-        
-    def unpack_object(self, packed):
-        geoc = GEOC.unpack(packed)
-        return geoc.author, geoc
     
-    def receive_object(self, author, secret, obj):
-        if not isinstance(obj, GEOC):
+    def receive_container(self, author, secret, container):
+        if not isinstance(container, GEOC):
             raise TypeError(
-                'Obj must be an unpacked GEOC, for example, as returned from '
-                'unpack_object.'
+                'Container must be an unpacked GEOC, for example, as returned '
+                'from unpack_container.'
             )
         self._typecheck_2ndparty(author)
         
-        signature = obj.signature
-        self._verify(author, signature, obj.guid.address)
-        plaintext = self._decrypt(secret, obj.payload)
+        signature = container.signature
+        self._verify(author, signature, container.guid.address)
+        plaintext = self._decrypt(secret, container.payload)
         # This will need to be converted into a namedtuple or something
-        return obj.guid, plaintext
-        
-    def unpack_bind_static(self, packed):
-        gobs = GOBS.unpack(packed)
-        return gobs.binder, gobs
+        return container.guid, plaintext
     
     def receive_bind_static(self, binder, binding):
         if not isinstance(binding, GOBS):
@@ -436,10 +452,6 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         self._verify(binder, signature, binding.guid.address)
         # This will need to be converted into a namedtuple or something
         return binding.guid, binding.target
-        
-    def unpack_bind_dynamic(self, packed):
-        gobd = GOBD.unpack(packed)
-        return gobd.binder, gobd
     
     def receive_bind_dynamic(self, binder, binding):
         if not isinstance(binding, GOBD):
@@ -453,10 +465,6 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         self._verify(binder, signature, binding.guid.address)
         # This will need to be converted into a namedtuple or something
         return binding.dynamic_address, binding.target, binding.history
-        
-    def unpack_debind(self, packed):
-        gdxx = GDXX.unpack(packed)
-        return gdxx.debinder, gdxx
     
     def receive_debind(self, debinder, debinding):
         if not isinstance(debinding, GDXX):
@@ -556,7 +564,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
             'encryption': <encryption key>,
             'exchange': <exchange key>
         }
-        In a form that is usable by the rest of the FirstPartyIdentity
+        In a form that is usable by the rest of the FirstParty
         crypto functions (this is dependent on the individual class' 
         implementation, ex its crypto library).
         '''
@@ -631,78 +639,48 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         pass
         
         
-class _ThirdPartyBase(metaclass=abc.ABCMeta):
+class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
     ''' Subclass this (on a per-ciphersuite basis) for servers, and 
     other parties that have no access to privileged information. 
     They can only verify.
     '''
-    @classmethod
-    @abc.abstractmethod
-    def unpack_object(cls, packed):
-        ''' Required to extract author!
-        '''
-        pass
-    
-    @classmethod
-    @abc.abstractmethod
-    def verify_object(cls, author, obj):
-        ''' Check the signature for the object.
-        '''
-        pass
+    @property
+    def ciphersuite(self):
+        return self._ciphersuite
         
     @classmethod
-    @abc.abstractmethod
-    def unpack_bind_static(cls, packed):
-        ''' Unpack public everything from static binding.
-        '''
-        pass
-    
-    @classmethod
-    @abc.abstractmethod
-    def verify_bind_static(cls, binder, binding):
-        ''' Check the signature for the static binding.
-        '''
-        pass
+    def _dispatch_address(cls, address_algo):
+        if address_algo == 'default':
+            address_algo = cls.DEFAULT_ADDRESS_ALGO
+        elif address_algo not in ADDRESS_ALGOS:
+            raise ValueError(
+                'Address algorithm unavailable for use: ' + str(address_algo)
+            )
+        return address_algo
         
     @classmethod
-    @abc.abstractmethod
-    def unpack_bind_dynamic(cls, packed):
-        ''' Unpack public everything from dynamic binding.
-        '''
-        pass
-    
-    @classmethod
-    @abc.abstractmethod
-    def verify_bind_dynamic(cls, binder, binding):
-        ''' Check the signature for the dynamic binding.
-        '''
-        pass
-        
-    @classmethod
-    @abc.abstractmethod
-    def unpack_debind(cls, packed):
-        ''' Unpack public everything from debinding.
-        '''
-        pass
-    
-    @classmethod
-    @abc.abstractmethod
-    def verify_debind(cls, debinder, debinding):
-        ''' Check the signature for the debinding.
-        '''
-        pass
-        
-    @classmethod
-    @abc.abstractmethod
     def unpack_request(cls, packed):
         ''' Unpack public everything from a request.
         (Cannot verify, at least for the existing ciphersuites, as of
         2016-03).
         '''
+        garq = GARQ.unpack(packed)
+        return garq
+        
+    @classmethod
+    @abc.abstractmethod
+    def verify_object(self, second_party, obj):
+        ''' Verifies the signature of any symmetric object (aka 
+        everything except GARQ) against data.
+        
+        raises TypeError if obj is an asymmetric object.
+        raises SecurityError if verification fails.
+        returns True on success.
+        '''
         pass
     
         
-class SecondPartyIdentity0(_SecondPartyBase, _IdentityBase):
+class SecondParty0(_SecondPartyBase, _IdentityBase):
     _ciphersuite = 0
         
     @classmethod
@@ -710,7 +688,7 @@ class SecondPartyIdentity0(_SecondPartyBase, _IdentityBase):
         return keys
         
         
-class FirstPartyIdentity0(_FirstPartyBase, _IdentityBase):
+class FirstParty0(_FirstPartyBase, _IdentityBase):
     ''' FOR TESTING PURPOSES ONLY. 
     
     Entirely inoperative. Correct API, but ignores all input, creating
@@ -720,11 +698,11 @@ class FirstPartyIdentity0(_FirstPartyBase, _IdentityBase):
     and second an Identity.
     '''
     _ciphersuite = 0
-    _2PID = SecondPartyIdentity0
+    _2PID = SecondParty0
         
     # Well it's not exactly repeating yourself, though it does mean there
     # are sorta two ways to perform decryption. Best practice = always decrypt
-    # using the author's SecondPartyIdentity
+    # using the author's SecondParty
         
     @classmethod
     def _generate_second_party(cls, keys, address_algo):
@@ -825,9 +803,9 @@ class FirstPartyIdentity0(_FirstPartyBase, _IdentityBase):
     @classmethod
     def _verify_mac(cls, key, mac, data):
         return True
+    
         
-
-class SecondPartyIdentity1(_SecondPartyBase, _IdentityBase): 
+class SecondParty1(_SecondPartyBase, _IdentityBase): 
     _ciphersuite = 1  
         
     @classmethod
@@ -853,15 +831,15 @@ _PSS_MGF = lambda x, y: MGF1(x, y, SHA512)
 # or, on the receiving end:
 # PSS.new(public_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).verify(h, signature)
 # Verification returns nothing (=None) if successful, raises ValueError if not
-class FirstPartyIdentity1(_FirstPartyBase, _IdentityBase):
+class FirstParty1(_FirstPartyBase, _IdentityBase):
     ''' ... Hmmm
     '''
     _ciphersuite = 1
-    _2PID = SecondPartyIdentity1
+    _2PID = SecondParty1
         
     # Well it's not exactly repeating yourself, though it does mean there
     # are sorta two ways to perform decryption. Best practice = always decrypt
-    # using the author's SecondPartyIdentity
+    # using the author's SecondParty
         
     @classmethod
     def _generate_second_party(cls, keys, address_algo):
@@ -906,7 +884,7 @@ class FirstPartyIdentity1(_FirstPartyBase, _IdentityBase):
     def _decrypt(cls, secret, data):
         ''' Symmetric decryptor.
         
-        Handle multiple ciphersuites by having a secondpartyidentity for
+        Handle multiple ciphersuites by having a SecondParty for
         whichever author created it, and calling their decrypt instead.
         '''
         # Courtesy of pycryptodome's API limitations:

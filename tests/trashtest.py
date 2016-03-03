@@ -40,10 +40,10 @@ import collections
 from golix import Guid
 
 # These are semi-normal imports
-from golix.cipher import FirstPartyIdentity0
-from golix.cipher import SecondPartyIdentity0
-from golix.cipher import FirstPartyIdentity1
-from golix.cipher import SecondPartyIdentity1
+from golix.cipher import FirstParty0
+from golix.cipher import SecondParty0
+from golix.cipher import FirstParty1
+from golix.cipher import SecondParty1
 
 # These are abnormal (don't use in production) imports.
 from golix._spec import _dummy_signature
@@ -60,7 +60,7 @@ def run():
     known_third_parties = {}
     
     # Dummy first-person identity tests with real addresser.
-    fake_first_id = FirstPartyIdentity0(address_algo=1)
+    fake_first_id = FirstParty0(address_algo=1)
     fake_third_id = fake_first_id.second_party
     
     # Keep them around for later!
@@ -68,8 +68,8 @@ def run():
     
     # -------------------------------------------------------------------------
     # Try it for rls
-    first_id_1 = FirstPartyIdentity1(address_algo=1)
-    first_id_2 = FirstPartyIdentity1(address_algo=1)
+    first_id_1 = FirstParty1(address_algo=1)
+    first_id_2 = FirstParty1(address_algo=1)
     third_id_1 = first_id_1.second_party
     third_id_2 = first_id_2.second_party
     
@@ -83,19 +83,19 @@ def run():
     secret2 = first_id_1.new_secret()
     secret2a = first_id_1.new_secret()
     
-    obj1_guid, obj1 = fake_first_id.make_object(
+    obj1_guid, obj1 = fake_first_id.make_container(
         secret = secret1, 
         plaintext = _dummy_payload
     )
-    obj1a_guid, obj1a = fake_first_id.make_object(
+    obj1a_guid, obj1a = fake_first_id.make_container(
         secret = secret1a, 
         plaintext = _dummy_payload_2
     )
-    obj2_guid, obj2 = first_id_1.make_object(
+    obj2_guid, obj2 = first_id_1.make_container(
         secret = secret2, 
         plaintext = _dummy_payload
     )
-    obj2a_guid, obj2a = first_id_1.make_object(
+    obj2a_guid, obj2a = first_id_1.make_container(
         secret = secret2a, 
         plaintext = _dummy_payload_2
     )
@@ -211,26 +211,26 @@ def run():
     
     # -------------------------------------------------------------------------
     # Objects
-    authorguid_1, geoc1 = fake_first_id.unpack_object(
+    authorguid_1, geoc1 = fake_first_id.unpack_container(
         packed = obj1
     )
     author_1 = known_third_parties[authorguid_1]
-    guid_1, geoc_1r_plaintext = fake_first_id.receive_object(
+    guid_1, geoc_1r_plaintext = fake_first_id.receive_container(
         author = author_1, 
         secret = secret1, 
-        obj = geoc1
+        container = geoc1
     )
     
     # Note that the author lookup ideally shouldn't be necessary if you already 
     # know who it is.
-    authorguid_2, geoc2 = first_id_2.unpack_object(
+    authorguid_2, geoc2 = first_id_2.unpack_container(
         packed = obj2
     )
     author_2 = third_id_1
-    guid_2, geoc_2r_plaintext = first_id_2.receive_object(
+    guid_2, geoc_2r_plaintext = first_id_2.receive_container(
         author = author_2, 
         secret = secret2, 
-        obj = geoc2
+        container = geoc2
     )
     
     # -------------------------------------------------------------------------

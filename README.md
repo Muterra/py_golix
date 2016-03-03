@@ -51,7 +51,7 @@ And these metrics are unknown:
 
 # Todo
 
-+ Reassess return API for receiving things as a FirstPersonID. Should it return a tuple, as it is right now, or not? Should the object return be different from the payload return?
++ Reassess return API for receiving things as a FirstPersonID. Should it return a tuple, as it is right now, or not? Should the object return be different from the payload return? Unpacking extracts pretty much everything you can get that's not protected by crypto. **I think probably transition API to "unpack" for the object, "receive" for the content.** And then receive will always return a single item.
 + Change hash generation to use hash.update method, and then finally call a .finalize
 + Test vectors for all crypto operations
 + Need ThirdPartyID for servers

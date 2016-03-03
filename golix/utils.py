@@ -365,6 +365,6 @@ def hash_lookup(num):
 # Various response objects
 
 
-AsymHandshake = namedtuple('PipeRequest', ['author', 'target', 'secret'])
-AsymAck = namedtuple('PipeAck', ['author', 'target', 'status'])
-AsymNak = namedtuple('PipeNak', ['author', 'target', 'status'])
+AsymHandshake = namedtuple('AsymHandshake', ['author', 'target', 'secret'])
+AsymAck = namedtuple('AsymAck', ['author', 'target', 'status'])
+AsymNak = namedtuple('AsymNak', ['author', 'target', 'status'])

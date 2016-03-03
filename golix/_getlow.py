@@ -34,17 +34,18 @@ golix: A python library for Golix protocol object manipulation.
 '''
 
 # Control * imports
-__all__ = ['GIDC', 'GEOC', 'GOBS', 'GOBD', 'GDXX', 'GARQ']
+__all__ = [
+    'GIDC', 
+    'GEOC', 
+    'GOBS', 
+    'GOBD', 
+    'GDXX', 
+    'GARQ'
+]
 
 # Global dependencies
 import abc
 import collections
-import inspect
-
-# Not sure if these are still used
-import struct
-import os
-from warnings import warn
 
 from ._spec import _gidc
 from ._spec import _geoc
@@ -72,7 +73,7 @@ from .utils import Secret
 # ###############################################
 
 # ----------------------------------------------------------------------
-# THIS MAKES ME FEEL DIRTY.
+# This makes me feel a little dirty.
 
 # We need to refactor once smartyparse is rewritten to modify the same
 # object continuously. Currently, smartyparse handles nested smartyparsers

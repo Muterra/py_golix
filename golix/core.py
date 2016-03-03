@@ -31,40 +31,27 @@ golix: A python library for Golix protocol object manipulation.
 
 '''
 
-# Control * imports
-__all__ = ['Guid', 'SecurityError']
+# Control * imports. Therefore controls what is available to toplevel
+# package through __init__.py
+__all__ = [
+    'Guid', 
+    'SecurityError', 
+    'Secret'
+]
 
 # Global dependencies
-import struct
-import abc
+# import collections
 
-
-import collections
-import io
-import os
-from warnings import warn
-
-# Inter-package dependencies
-
-# This is controlled by __all__ in _getlow.
+# Inter-package dependencies that pass straight through to __all__
 from .utils import Guid
 from .utils import SecurityError
 from .utils import Secret
-        
+
+# Inter-package dependencies that are only used locally
+from .cipher import FirstParty1
+from .cipher import SecondParty1
+from .cipher import ThirdParty1
         
 # ###############################################
 # Utilities
 # ###############################################
-
-
-# ###############################################
-# Helper objects
-# ###############################################
-
-
-# ###############################################
-# High-level Muse constructs
-# ###############################################
-
-class ObjectContainer():
-    pass

@@ -74,9 +74,9 @@ Some initial temporary thoughts:
 
 # Control * imports
 __all__ = [
-    'AddressAlgo1', 
-    'CipherSuite1', 
-    'CipherSuite2'
+    'FirstParty1', 
+    'SecondParty1', 
+    'ThirdParty1'
 ]
 
 # Global dependencies

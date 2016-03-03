@@ -55,6 +55,12 @@ And these metrics are unknown:
 + Change hash generation to use hash.update method, and then finally call a .finalize
 + Test vectors for all crypto operations
 + Need ThirdPartyID for servers
+    + Cannot create anything
+    + Has no keys
+    + Copies most of the methods from FirstPartyID for unpacking, etc
+    + Can also verify objects
++ Should EVERYONE verify the entire dynamic chain (particularly re: consistent author), or just servers? Probably everyone. Which means that needs to be added. Except, because that is a state preservation issue, that needs to be handled downstream.
++ Consider wrapping all parsing errors in SecurityError
 
 ## Done
 

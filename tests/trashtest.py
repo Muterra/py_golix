@@ -36,15 +36,16 @@ golix: A python library for Golix protocol object manipulation.
 import sys
 import collections
 
-# These are normal inclusions
+# These are normal imports
 from golix import Guid
 
-# These are abnormal (don't use in production) inclusions.
+# These are semi-normal imports
 from golix.cipher import FirstPartyIdentity0
 from golix.cipher import SecondPartyIdentity0
 from golix.cipher import FirstPartyIdentity1
 from golix.cipher import SecondPartyIdentity1
 
+# These are abnormal (don't use in production) imports.
 from golix._spec import _dummy_signature
 from golix._spec import _dummy_mac
 from golix._spec import _dummy_asym
@@ -53,8 +54,6 @@ from golix._spec import _dummy_address
 # ###############################################
 # Testing
 # ###############################################
-
-_dummy_guid = Guid(0, _dummy_address)
     
 def run():
     # Check this out!
@@ -250,6 +249,42 @@ def run():
     guid_3, target_s2 = first_id_2.receive_bind_static(
         binder = author_2, 
         binding = gobs2
+    )
+    
+    # -------------------------------------------------------------------------
+    # Dynamic bindings
+    # Fake, no history
+    binder1d_guid, gobd1 = fake_first_id.unpack_bind_dynamic(
+        packed = bind1d
+    )
+    guid_4, target_d1, history_1 = fake_first_id.receive_bind_dynamic(
+        binder = author_1, 
+        binding = gobd1
+    )
+    # Fake, history
+    binder1d2_guid, gobd12 = fake_first_id.unpack_bind_dynamic(
+        packed = bind1d
+    )
+    guid_4b, target_d12, history_12 = fake_first_id.receive_bind_dynamic(
+        binder = author_1, 
+        binding = gobd12
+    )
+    
+    # Real, no history
+    binder2d_guid, gobd2 = first_id_2.unpack_bind_dynamic(
+        packed = bind2d
+    )
+    guid_5, target_d2, history_2 = first_id_2.receive_bind_dynamic(
+        binder = author_2, 
+        binding = gobd2
+    )
+    # Real, history
+    binder2d_guid, gobd22 = first_id_2.unpack_bind_dynamic(
+        packed = bind2d2
+    )
+    guid_5b, target_d22, history_22 = first_id_2.receive_bind_dynamic(
+        binder = author_2, 
+        binding = gobd22
     )
     
     # -------------------------------------------------------------------------

@@ -270,7 +270,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         super().__init__(keys=keys, author_guid=author_guid, *args, **kwargs)
         
     @classmethod
-    def _typecheck_thirdparty(cls, obj):
+    def _typecheck_2ndparty(cls, obj):
         # Type check the partner. Must be SecondPartyIdentityX or similar.
         if not isinstance(obj, cls._2PID):
             raise TypeError(
@@ -353,7 +353,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         )
         
     def make_request(self, recipient, request):
-        self._typecheck_thirdparty(recipient)
+        self._typecheck_2ndparty(recipient)
         
         # I'm actually okay with this performance hit, since it forces some
         # level of type checking here. Which is, I think, in this case, good.
@@ -412,7 +412,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
                 'Obj must be an unpacked GEOC, for example, as returned from '
                 'unpack_object.'
             )
-        self._typecheck_thirdparty(author)
+        self._typecheck_2ndparty(author)
         
         signature = obj.signature
         self._verify(author, signature, obj.guid.address)
@@ -430,7 +430,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
                 'Binding must be an unpacked GOBS, for example, as returned '
                 'from unpack_bind_static.'
             )
-        self._typecheck_thirdparty(binder)
+        self._typecheck_2ndparty(binder)
         
         signature = binding.signature
         self._verify(binder, signature, binding.guid.address)
@@ -447,12 +447,12 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
                 'Binding must be an unpacked GOBD, for example, as returned '
                 'from unpack_bind_dynamic.'
             )
-        self._typecheck_thirdparty(binder)
+        self._typecheck_2ndparty(binder)
         
         signature = binding.signature
         self._verify(binder, signature, binding.guid.address)
         # This will need to be converted into a namedtuple or something
-        return binding.guid, binding.target
+        return binding.dynamic_address, binding.target, binding.history
         
     def unpack_request(self, packed):
         garq = GARQ.unpack(packed)
@@ -496,7 +496,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         ''' Verifies the request and exposes its contents.
         '''
         # Typecheck all the things
-        self._typecheck_thirdparty(requestor)
+        self._typecheck_2ndparty(requestor)
         # Also make sure the request is something we've already unpacked
         if not isinstance(request, GARQ):
             raise TypeError(
@@ -675,7 +675,7 @@ class FirstPartyIdentity0(_FirstPartyBase, _IdentityBase):
         formatted with all necessary components for a public key (?).
         Signature must be bytes-like.
         '''
-        self._typecheck_thirdparty(public)
+        self._typecheck_2ndparty(public)
         return True
         
     def _encrypt_asym(self, public, data):
@@ -684,7 +684,7 @@ class FirstPartyIdentity0(_FirstPartyBase, _IdentityBase):
         Data should be bytes-like. Public key should be a dictionary 
         formatted with all necessary components for a public key.
         '''
-        self._typecheck_thirdparty(public)
+        self._typecheck_2ndparty(public)
         return _dummy_asym
         
     def _decrypt_asym(self, data):
@@ -725,7 +725,7 @@ class FirstPartyIdentity0(_FirstPartyBase, _IdentityBase):
     def _derive_shared(self, partner):
         ''' Derive a shared secret with the partner.
         '''
-        self._typecheck_thirdparty(partner)
+        self._typecheck_2ndparty(partner)
         return b'[[ Placeholder shared secret ]]'
         
     @classmethod
@@ -849,7 +849,7 @@ class FirstPartyIdentity1(_FirstPartyBase, _IdentityBase):
         formatted with all necessary components for a public key (?).
         Signature must be bytes-like.
         '''
-        self._typecheck_thirdparty(public)
+        self._typecheck_2ndparty(public)
         
         h = _FrozenSHA512(data)
         signer = PSS.new(public._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)
@@ -866,7 +866,7 @@ class FirstPartyIdentity1(_FirstPartyBase, _IdentityBase):
         Data should be bytes-like. Public key should be a dictionary 
         formatted with all necessary components for a public key.
         '''
-        self._typecheck_thirdparty(public)
+        self._typecheck_2ndparty(public)
         cipher = OAEP.new(public._encryption_key)
         return cipher.encrypt(data)
         

@@ -246,7 +246,7 @@ def run():
     binder2_guid, gobs2 = first_id_2.unpack_bind_static(
         packed = bind2
     )
-    guid_3, target_s2 = first_id_2.receive_bind_static(
+    guid_4, target_s2 = first_id_2.receive_bind_static(
         binder = author_2, 
         binding = gobs2
     )
@@ -257,7 +257,7 @@ def run():
     binder1d_guid, gobd1 = fake_first_id.unpack_bind_dynamic(
         packed = bind1d
     )
-    guid_4, target_d1, history_1 = fake_first_id.receive_bind_dynamic(
+    guid_5, target_d1, history_1 = fake_first_id.receive_bind_dynamic(
         binder = author_1, 
         binding = gobd1
     )
@@ -265,7 +265,7 @@ def run():
     binder1d2_guid, gobd12 = fake_first_id.unpack_bind_dynamic(
         packed = bind1d
     )
-    guid_4b, target_d12, history_12 = fake_first_id.receive_bind_dynamic(
+    guid_5b, target_d12, history_12 = fake_first_id.receive_bind_dynamic(
         binder = author_1, 
         binding = gobd12
     )
@@ -274,7 +274,7 @@ def run():
     binder2d_guid, gobd2 = first_id_2.unpack_bind_dynamic(
         packed = bind2d
     )
-    guid_5, target_d2, history_2 = first_id_2.receive_bind_dynamic(
+    guid_6, target_d2, history_2 = first_id_2.receive_bind_dynamic(
         binder = author_2, 
         binding = gobd2
     )
@@ -282,9 +282,27 @@ def run():
     binder2d_guid, gobd22 = first_id_2.unpack_bind_dynamic(
         packed = bind2d2
     )
-    guid_5b, target_d22, history_22 = first_id_2.receive_bind_dynamic(
+    guid_6b, target_d22, history_22 = first_id_2.receive_bind_dynamic(
         binder = author_2, 
         binding = gobd22
+    )
+    
+    # -------------------------------------------------------------------------
+    # Static bindings
+    debinder1_guid, gdxx1 = fake_first_id.unpack_debind(
+        packed = debind1
+    )
+    guid_7, target_x1 = fake_first_id.receive_debind(
+        debinder = author_1, 
+        debinding = gdxx1
+    )
+    
+    debinder2_guid, gdxx2 = first_id_2.unpack_debind(
+        packed = debind2
+    )
+    guid_8, target_x2 = first_id_2.receive_debind(
+        debinder = author_2, 
+        debinding = gdxx2
     )
     
     # -------------------------------------------------------------------------

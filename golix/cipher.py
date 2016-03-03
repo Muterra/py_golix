@@ -454,6 +454,23 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
         # This will need to be converted into a namedtuple or something
         return binding.dynamic_address, binding.target, binding.history
         
+    def unpack_debind(self, packed):
+        gdxx = GDXX.unpack(packed)
+        return gdxx.debinder, gdxx
+    
+    def receive_debind(self, debinder, debinding):
+        if not isinstance(debinding, GDXX):
+            raise TypeError(
+                'Debinding must be an unpacked GDXX, for example, as returned '
+                'from unpack_debind.'
+            )
+        self._typecheck_2ndparty(debinder)
+        
+        signature = debinding.signature
+        self._verify(debinder, signature, debinding.guid.address)
+        # This will need to be converted into a namedtuple or something
+        return debinding.guid, debinding.target
+        
     def unpack_request(self, packed):
         garq = GARQ.unpack(packed)
         plaintext = self._decrypt_asym(garq.payload)

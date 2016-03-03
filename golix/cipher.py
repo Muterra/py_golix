@@ -542,7 +542,7 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
     def _generate_second_party(cls, keys, address_algo):
         ''' MUST ONLY be called when generating one from scratch, not 
         when loading one. Loading must always be done directly through
-        loading a ThirdParty.
+        loading a SecondParty.
         '''
         pass
         
@@ -627,6 +627,77 @@ class _FirstPartyBase(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def _verify_mac(cls, key, mac, data):
         ''' Generate a MAC for data using key.
+        '''
+        pass
+        
+        
+class _ThirdPartyBase(metaclass=abc.ABCMeta):
+    ''' Subclass this (on a per-ciphersuite basis) for servers, and 
+    other parties that have no access to privileged information. 
+    They can only verify.
+    '''
+    @classmethod
+    @abc.abstractmethod
+    def unpack_object(cls, packed):
+        ''' Required to extract author!
+        '''
+        pass
+    
+    @classmethod
+    @abc.abstractmethod
+    def verify_object(cls, author, obj):
+        ''' Check the signature for the object.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def unpack_bind_static(cls, packed):
+        ''' Unpack public everything from static binding.
+        '''
+        pass
+    
+    @classmethod
+    @abc.abstractmethod
+    def verify_bind_static(cls, binder, binding):
+        ''' Check the signature for the static binding.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def unpack_bind_dynamic(cls, packed):
+        ''' Unpack public everything from dynamic binding.
+        '''
+        pass
+    
+    @classmethod
+    @abc.abstractmethod
+    def verify_bind_dynamic(cls, binder, binding):
+        ''' Check the signature for the dynamic binding.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def unpack_debind(cls, packed):
+        ''' Unpack public everything from debinding.
+        '''
+        pass
+    
+    @classmethod
+    @abc.abstractmethod
+    def verify_debind(cls, debinder, debinding):
+        ''' Check the signature for the debinding.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def unpack_request(cls, packed):
+        ''' Unpack public everything from a request.
+        (Cannot verify, at least for the existing ciphersuites, as of
+        2016-03).
         '''
         pass
     
@@ -835,7 +906,7 @@ class FirstPartyIdentity1(_FirstPartyBase, _IdentityBase):
     def _decrypt(cls, secret, data):
         ''' Symmetric decryptor.
         
-        Handle multiple ciphersuites by having a thirdpartyidentity for
+        Handle multiple ciphersuites by having a secondpartyidentity for
         whichever author created it, and calling their decrypt instead.
         '''
         # Courtesy of pycryptodome's API limitations:

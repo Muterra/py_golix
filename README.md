@@ -61,6 +61,7 @@ And these metrics are unknown:
     + Can also verify objects
 + Should EVERYONE verify the entire dynamic chain (particularly re: consistent author), or just servers? Probably everyone. Which means that needs to be added. Except, because that is a state preservation issue, that needs to be handled downstream.
 + Consider wrapping all parsing errors in SecurityError
++ Consider adding functionality to prevent access to attributes on ex. static bindings when loading a packed object until the object has been verified with receive_<object>.
 
 ## Done
 

@@ -217,22 +217,22 @@ class _ObjectHandlerBase():
     @classmethod
     def unpack_container(cls, packed):
         geoc = GEOC.unpack(packed)
-        return geoc.author, geoc
+        return geoc
         
     @classmethod
     def unpack_bind_static(cls, packed):
         gobs = GOBS.unpack(packed)
-        return gobs.binder, gobs
+        return gobs
         
     @classmethod
     def unpack_bind_dynamic(cls, packed):
         gobd = GOBD.unpack(packed)
-        return gobd.binder, gobd
+        return gobd
         
     @classmethod
     def unpack_debind(cls, packed):
         gdxx = GDXX.unpack(packed)
-        return gdxx.debinder, gdxx
+        return gdxx
     
     
 class _SecondPartyBase(metaclass=abc.ABCMeta):
@@ -320,8 +320,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         geoc.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(geoc.guid.address)
         geoc.pack_signature(signature)
-        # This will need to be converted into a namedtuple or something
-        return geoc.guid, geoc.packed
+        return geoc
         
     def make_bind_static(self, target):        
         gobs = GOBS(
@@ -331,19 +330,19 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         gobs.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(gobs.guid.address)
         gobs.pack_signature(signature)
-        return gobs.guid, gobs.packed
+        return gobs
         
-    def make_bind_dynamic(self, target, address=None, history=None):
+    def make_bind_dynamic(self, target, guid_dynamic=None, history=None):
         gobd = GOBD(
             binder = self.author_guid,
             target = target,
-            dynamic_address = address,
+            guid_dynamic = guid_dynamic,
             history = history
         )
         gobd.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(gobd.guid.address)
         gobd.pack_signature(signature)
-        return gobd.guid, gobd.packed, gobd.dynamic_address
+        return gobd
         
     def make_debind(self, target):
         gdxx = GDXX(
@@ -353,7 +352,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         gdxx.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(gdxx.guid.address)
         gdxx.pack_signature(signature)
-        return gdxx.guid, gdxx.packed
+        return gdxx
         
     def make_handshake(self, secret, target):
         return AsymHandshake(
@@ -424,7 +423,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             )
         )
         
-        return garq.guid, garq.packed
+        return garq
     
     def receive_container(self, author, secret, container):
         if not isinstance(container, GEOC):
@@ -438,7 +437,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         self._verify(author, signature, container.guid.address)
         plaintext = self._decrypt(secret, container.payload)
         # This will need to be converted into a namedtuple or something
-        return container.guid, plaintext
+        return plaintext
     
     def receive_bind_static(self, binder, binding):
         if not isinstance(binding, GOBS):
@@ -451,7 +450,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         signature = binding.signature
         self._verify(binder, signature, binding.guid.address)
         # This will need to be converted into a namedtuple or something
-        return binding.guid, binding.target
+        return binding.target
     
     def receive_bind_dynamic(self, binder, binding):
         if not isinstance(binding, GOBD):
@@ -464,7 +463,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         signature = binding.signature
         self._verify(binder, signature, binding.guid.address)
         # This will need to be converted into a namedtuple or something
-        return binding.dynamic_address, binding.target, binding.history
+        return binding.target
     
     def receive_debind(self, debinder, debinding):
         if not isinstance(debinding, GDXX):
@@ -477,7 +476,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         signature = debinding.signature
         self._verify(debinder, signature, debinding.guid.address)
         # This will need to be converted into a namedtuple or something
-        return debinding.guid, debinding.target
+        return debinding.target
         
     def unpack_request(self, packed):
         garq = GARQ.unpack(packed)
@@ -514,8 +513,9 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
                     raise SecurityError('Could not securely unpack request.')
             
         garq._plaintext = request
+        garq._author = request.author
         
-        return request.author, garq
+        return garq
         
     def receive_request(self, requestor, request):
         ''' Verifies the request and exposes its contents.
@@ -542,7 +542,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             mac = request.signature
         )
         
-        del request._plaintext
+        del request._plaintext, request.author
         return plaintext
         
     @classmethod
@@ -586,8 +586,10 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
     @abc.abstractmethod
     def _verify(self, public, signature, data):
-        ''' Verifies an author's signature against bites. Errors out if 
-        unsuccessful. Returns True if successful.
+        ''' Verifies signature against data using SecondParty public.
+        
+        raises SecurityError if verification fails.
+        returns True on success.
         '''
         pass
         
@@ -668,12 +670,38 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         return garq
         
     @classmethod
-    @abc.abstractmethod
-    def verify_object(self, second_party, obj):
+    def verify_object(cls, second_party, obj):
         ''' Verifies the signature of any symmetric object (aka 
         everything except GARQ) against data.
         
-        raises TypeError if obj is an asymmetric object.
+        raises TypeError if obj is an asymmetric object (or otherwise 
+            unsupported).
+        raises SecurityError if verification fails.
+        returns True on success.
+        '''
+        if isinstance(obj, GIDC) or \
+            isinstance(obj, GEOC) or \
+            isinstance(obj, GOBS) or \
+            isinstance(obj, GOBD) or \
+            isinstance(obj, GDXX):
+                return cls._verify(
+                    public = second_party, 
+                    signature = obj.signature,
+                    data = obj.guid
+                )
+        elif isinstance(obj, GARQ):
+            raise TypeError(
+                'Asymmetric objects cannot be verified by third parties. '
+                'They can only be verified by their recipients.'
+            )
+        else:
+            raise TypeError('Obj must be a Golix object: GIDC, GEOC, etc.')
+            
+    @classmethod
+    @abc.abstractmethod
+    def _verify(cls, public, signature, data):
+        ''' Verifies signature against data using SecondParty public.
+        
         raises SecurityError if verification fails.
         returns True on success.
         '''
@@ -733,7 +761,8 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         '''
         return _dummy_signature
     
-    def _verify(self, public, signature, data):
+    @classmethod
+    def _verify(cls, public, signature, data):
         ''' Verifies an author's signature against bites. Errors out if 
         unsuccessful. Returns True if successful.
         
@@ -741,7 +770,7 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         formatted with all necessary components for a public key (?).
         Signature must be bytes-like.
         '''
-        self._typecheck_2ndparty(public)
+        cls._typecheck_2ndparty(public)
         return True
         
     def _encrypt_asym(self, public, data):
@@ -907,7 +936,8 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         )
         return signer.sign(h)
        
-    def _verify(self, public, signature, data):
+    @classmethod
+    def _verify(cls, public, signature, data):
         ''' Verifies an author's signature against bites. Errors out if 
         unsuccessful. Returns True if successful.
         
@@ -915,7 +945,7 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         formatted with all necessary components for a public key (?).
         Signature must be bytes-like.
         '''
-        self._typecheck_2ndparty(public)
+        cls._typecheck_2ndparty(public)
         
         h = _FrozenSHA512(data)
         signer = PSS.new(public._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)

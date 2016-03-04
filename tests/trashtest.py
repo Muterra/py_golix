@@ -57,21 +57,21 @@ from golix._spec import _dummy_address
     
 def run():
     # Check this out!
-    known_third_parties = {}
+    known_second_parties = {}
     
     # Dummy first-person identity tests with real addresser.
     fake_first_id = FirstParty0(address_algo=1)
-    fake_third_id = fake_first_id.second_party
+    fake_second_id = fake_first_id.second_party
     
     # Keep them around for later!
-    known_third_parties[fake_third_id.author_guid] = fake_third_id
+    known_second_parties[fake_second_id.author_guid] = fake_second_id
     
     # -------------------------------------------------------------------------
     # Try it for rls
     first_id_1 = FirstParty1(address_algo=1)
     first_id_2 = FirstParty1(address_algo=1)
-    third_id_1 = first_id_1.second_party
-    third_id_2 = first_id_2.second_party
+    second_id_1 = first_id_1.second_party
+    second_id_2 = first_id_2.second_party
     
     # -------------------------------------------------------------------------
     # Test them on GEOCs:
@@ -83,124 +83,124 @@ def run():
     secret2 = first_id_1.new_secret()
     secret2a = first_id_1.new_secret()
     
-    obj1_guid, obj1 = fake_first_id.make_container(
+    container1 = fake_first_id.make_container(
         secret = secret1, 
         plaintext = _dummy_payload
     )
-    obj1a_guid, obj1a = fake_first_id.make_container(
+    container1a = fake_first_id.make_container(
         secret = secret1a, 
         plaintext = _dummy_payload_2
     )
-    obj2_guid, obj2 = first_id_1.make_container(
+    container2 = first_id_1.make_container(
         secret = secret2, 
         plaintext = _dummy_payload
     )
-    obj2a_guid, obj2a = first_id_1.make_container(
+    container2a = first_id_1.make_container(
         secret = secret2a, 
         plaintext = _dummy_payload_2
     )
     
     # -------------------------------------------------------------------------
     # Now try making static bindings for them.
-    bind1_guid, bind1 = fake_first_id.make_bind_static(
-        target = obj1_guid
+    bind1 = fake_first_id.make_bind_static(
+        target = container1.guid
     )
-    bind2_guid, bind2 = first_id_1.make_bind_static(
-        target = obj2_guid
+    bind2 = first_id_1.make_bind_static(
+        target = container2.guid
     )
     
     # -------------------------------------------------------------------------
     # Now try making dynamic bindings for them.
-    bind1d_guid1, bind1d, bind1d_guid = fake_first_id.make_bind_dynamic(
-        target = obj1_guid
+    bind1d = fake_first_id.make_bind_dynamic(
+        target = container1.guid
     )
-    bind2d_guid1, bind2d, bind2d_guid = first_id_1.make_bind_dynamic(
-        target = obj2_guid
+    bind2d = first_id_1.make_bind_dynamic(
+        target = container2.guid
     )
     
     # And try making dynamic bindings with history now.
-    bind1d_guid2, bind1d2, bind1d_guidR = fake_first_id.make_bind_dynamic(
-        target = obj1a_guid,
-        address = bind1d_guid,
-        history = [bind1d_guid1]
+    bind1d2 = fake_first_id.make_bind_dynamic(
+        target = container1a.guid,
+        guid_dynamic = bind1d.guid_dynamic,
+        history = [bind1d.guid]
     )
-    assert bind1d_guidR == bind1d_guid
+    assert bind1d2.guid_dynamic == bind1d.guid_dynamic
     
-    bind2d_guid2, bind2d2, bind2d_guidR = first_id_1.make_bind_dynamic(
-        target = obj2a_guid,
-        address = bind2d_guid,
-        history = [bind2d_guid1]
+    bind2d2 = first_id_1.make_bind_dynamic(
+        target = container2a.guid,
+        guid_dynamic = bind2d.guid_dynamic,
+        history = [bind2d.guid]
     )
-    assert bind2d_guidR == bind2d_guid
+    assert bind2d2.guid_dynamic == bind2d.guid_dynamic
     
     # -------------------------------------------------------------------------
     # And go ahead and make debindings for everything.
-    debind1_guid, debind1 = fake_first_id.make_debind(
-        target = bind1_guid
+    debind1 = fake_first_id.make_debind(
+        target = bind1.guid
     )
-    debind1d_guid, debind1d = fake_first_id.make_debind(
-        target = bind1d_guid
+    debind1d = fake_first_id.make_debind(
+        target = bind1d.guid_dynamic
     )
-    debind2_guid, debind2 = first_id_1.make_debind(
-        target = bind2_guid
+    debind2 = first_id_1.make_debind(
+        target = bind2.guid
     )
-    debind2d_guid, debind2d = first_id_1.make_debind(
-        target = bind2d_guid
+    debind2d = first_id_1.make_debind(
+        target = bind2d.guid_dynamic
     )
     
     # -------------------------------------------------------------------------
     # Asymmetric handshakes
     ahand1 = fake_first_id.make_handshake(
-        target = obj1_guid,
+        target = container1.guid,
         secret = secret1
     )
-    areq1a_guid, areq1a = fake_first_id.make_request(
-        recipient = fake_third_id,
+    areq1a = fake_first_id.make_request(
+        recipient = fake_second_id,
         request = ahand1
     )
     
     ahand2 = first_id_1.make_handshake(
-        target = obj2_guid,
+        target = container2.guid,
         secret = secret2
     )
-    areq2a_guid, areq2a = first_id_1.make_request(
-        recipient = third_id_2,
+    areq2a = first_id_1.make_request(
+        recipient = second_id_2,
         request = ahand2
     )
     
     # -------------------------------------------------------------------------
     # Asymmetric ack
     aack1 = fake_first_id.make_ack(
-        target = areq1a_guid
+        target = areq1a.guid
     )
-    areq1b_guid, areq1b = fake_first_id.make_request(
-        recipient = fake_third_id,
+    areq1b = fake_first_id.make_request(
+        recipient = fake_second_id,
         request = aack1
     )
     
     aack2 = first_id_1.make_ack(
-        target = areq2a_guid
+        target = areq2a.guid
     )
-    areq2b_guid, areq2b = first_id_1.make_request(
-        recipient = third_id_2,
+    areq2b = first_id_1.make_request(
+        recipient = second_id_2,
         request = aack2
     )
     
     # -------------------------------------------------------------------------
     # Asymmetric nak
     anak1 = fake_first_id.make_nak(
-        target = areq1a_guid
+        target = areq1a.guid
     )
-    areq1c_guid, areq1c = fake_first_id.make_request(
-        recipient = fake_third_id,
+    areq1c = fake_first_id.make_request(
+        recipient = fake_second_id,
         request = anak1
     )
     
     anak2 = first_id_1.make_nak(
-        target = areq2a_guid
+        target = areq2a.guid
     )
-    areq2c_guid, areq2c = first_id_1.make_request(
-        recipient = third_id_2,
+    areq2c = first_id_1.make_request(
+        recipient = second_id_2,
         request = anak2
     )
     
@@ -211,11 +211,11 @@ def run():
     
     # -------------------------------------------------------------------------
     # Objects
-    authorguid_1, geoc1 = fake_first_id.unpack_container(
-        packed = obj1
+    geoc1 = fake_first_id.unpack_container(
+        packed = container1.packed
     )
-    author_1 = known_third_parties[authorguid_1]
-    guid_1, geoc_1r_plaintext = fake_first_id.receive_container(
+    author_1 = known_second_parties[geoc1.author]
+    geoc_1r_plaintext = fake_first_id.receive_container(
         author = author_1, 
         secret = secret1, 
         container = geoc1
@@ -223,11 +223,11 @@ def run():
     
     # Note that the author lookup ideally shouldn't be necessary if you already 
     # know who it is.
-    authorguid_2, geoc2 = first_id_2.unpack_container(
-        packed = obj2
+    geoc2 = first_id_2.unpack_container(
+        packed = container2.packed
     )
-    author_2 = third_id_1
-    guid_2, geoc_2r_plaintext = first_id_2.receive_container(
+    author_2 = second_id_1
+    geoc_2r_plaintext = first_id_2.receive_container(
         author = author_2, 
         secret = secret2, 
         container = geoc2
@@ -235,18 +235,18 @@ def run():
     
     # -------------------------------------------------------------------------
     # Static bindings
-    binder1_guid, gobs1 = fake_first_id.unpack_bind_static(
-        packed = bind1
+    gobs1 = fake_first_id.unpack_bind_static(
+        packed = bind1.packed
     )
-    guid_3, target_s1 = fake_first_id.receive_bind_static(
+    target_s1 = fake_first_id.receive_bind_static(
         binder = author_1, 
         binding = gobs1
     )
     
-    binder2_guid, gobs2 = first_id_2.unpack_bind_static(
-        packed = bind2
+    gobs2 = first_id_2.unpack_bind_static(
+        packed = bind2.packed
     )
-    guid_4, target_s2 = first_id_2.receive_bind_static(
+    target_s2 = first_id_2.receive_bind_static(
         binder = author_2, 
         binding = gobs2
     )
@@ -254,53 +254,53 @@ def run():
     # -------------------------------------------------------------------------
     # Dynamic bindings
     # Fake, no history
-    binder1d_guid, gobd1 = fake_first_id.unpack_bind_dynamic(
-        packed = bind1d
+    gobd1 = fake_first_id.unpack_bind_dynamic(
+        packed = bind1d.packed
     )
-    guid_5, target_d1, history_1 = fake_first_id.receive_bind_dynamic(
+    target_d1 = fake_first_id.receive_bind_dynamic(
         binder = author_1, 
         binding = gobd1
     )
     # Fake, history
-    binder1d2_guid, gobd12 = fake_first_id.unpack_bind_dynamic(
-        packed = bind1d
+    gobd12 = fake_first_id.unpack_bind_dynamic(
+        packed = bind1d.packed
     )
-    guid_5b, target_d12, history_12 = fake_first_id.receive_bind_dynamic(
+    target_d12 = fake_first_id.receive_bind_dynamic(
         binder = author_1, 
         binding = gobd12
     )
     
     # Real, no history
-    binder2d_guid, gobd2 = first_id_2.unpack_bind_dynamic(
-        packed = bind2d
+    gobd2 = first_id_2.unpack_bind_dynamic(
+        packed = bind2d.packed
     )
-    guid_6, target_d2, history_2 = first_id_2.receive_bind_dynamic(
+    target_d2 = first_id_2.receive_bind_dynamic(
         binder = author_2, 
         binding = gobd2
     )
     # Real, history
-    binder2d_guid, gobd22 = first_id_2.unpack_bind_dynamic(
-        packed = bind2d2
+    gobd22 = first_id_2.unpack_bind_dynamic(
+        packed = bind2d2.packed
     )
-    guid_6b, target_d22, history_22 = first_id_2.receive_bind_dynamic(
+    target_d22 = first_id_2.receive_bind_dynamic(
         binder = author_2, 
         binding = gobd22
     )
     
     # -------------------------------------------------------------------------
-    # Static bindings
-    debinder1_guid, gdxx1 = fake_first_id.unpack_debind(
-        packed = debind1
+    # Debindings
+    gdxx1 = fake_first_id.unpack_debind(
+        packed = debind1.packed
     )
-    guid_7, target_x1 = fake_first_id.receive_debind(
+    target_x1 = fake_first_id.receive_debind(
         debinder = author_1, 
         debinding = gdxx1
     )
     
-    debinder2_guid, gdxx2 = first_id_2.unpack_debind(
-        packed = debind2
+    gdxx2 = first_id_2.unpack_debind(
+        packed = debind2.packed
     )
-    guid_8, target_x2 = first_id_2.receive_debind(
+    target_x2 = first_id_2.receive_debind(
         debinder = author_2, 
         debinding = gdxx2
     )
@@ -308,33 +308,33 @@ def run():
     # -------------------------------------------------------------------------
     # Test all of the real (fake won't work because of the fake asym payload)
     # asymmetric requests
-    authorguid_2, areq2_up = first_id_2.unpack_request(
-        packed = areq2a
+    areq2_up = first_id_2.unpack_request(
+        packed = areq2a.packed
     )
     areq2_rec = first_id_2.receive_request(
-        requestor = third_id_1, 
+        requestor = second_id_1, 
         request = areq2_up
     )
     
-    authorguid_2, aack2_up = first_id_2.unpack_request(
-        packed = areq2b
+    aack2_up = first_id_2.unpack_request(
+        packed = areq2b.packed
     )
     aack2_rec = first_id_2.receive_request(
-        requestor = third_id_1, 
+        requestor = second_id_1, 
         request = aack2_up
     )
     
-    authorguid_2, anak2_up = first_id_2.unpack_request(
-        packed = areq2c
+    anak2_up = first_id_2.unpack_request(
+        packed = areq2c.packed
     )
     anak2_rec = first_id_2.receive_request(
-        requestor = third_id_1, 
+        requestor = second_id_1, 
         request = anak2_up
     )
     
     
-    # import IPython
-    # IPython.embed()
+    import IPython
+    IPython.embed()
                 
 if __name__ == '__main__':
     run()

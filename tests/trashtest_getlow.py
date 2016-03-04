@@ -151,7 +151,7 @@ def run():
     gobd_3 = GOBD(
         binder=_rls_author, 
         target=_dummy_guid,
-        dynamic_address=gobd_2.dynamic_address,
+        guid_dynamic=gobd_2.guid_dynamic,
         history=[gobd_2.guid]
     )
     gobd_3.pack(cipher=0, address_algo=1)

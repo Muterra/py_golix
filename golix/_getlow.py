@@ -558,11 +558,11 @@ class GOBD(_GolixObjectBase):
                 binder=None, 
                 history=None, 
                 target=None, 
-                dynamic_address=None, 
+                guid_dynamic=None, 
                 _control=None, *args, **kwargs):
         ''' Generates GOBS object.
         
-        Binder, targets, and dynamic_address should be a utils.Guid 
+        Binder, targets, and guid_dynamic should be a utils.Guid 
         object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -571,7 +571,7 @@ class GOBD(_GolixObjectBase):
         if not _control:
             self.binder = binder
             self.target = target
-            self.dynamic_address = dynamic_address
+            self.guid_dynamic = guid_dynamic
             self.history = history
         
     @property
@@ -603,16 +603,16 @@ class GOBD(_GolixObjectBase):
         self._control['body']['target'] = value
         
     @property
-    def dynamic_address(self):
+    def guid_dynamic(self):
         try:
             return self._control['guid_dynamic']
         except KeyError as e:
             raise AttributeError('Dynamic address not yet defined.') from e
             
-    @dynamic_address.setter
-    def dynamic_address(self, guid):
+    @guid_dynamic.setter
+    def guid_dynamic(self, guid):
         if not _typecheck_guid(guid):
-            raise TypeError('Dynamic_address must be type Guid or similar.')
+            raise TypeError('Guid_dynamic must be type Guid or similar.')
             
         self._control['guid_dynamic'] = guid
         
@@ -637,11 +637,11 @@ class GOBD(_GolixObjectBase):
         '''
         # Normal
         # First we need to check some things.
-        if self.history and self.dynamic_address:
+        if self.history and self.guid_dynamic:
             # Accommodate SP
             calculate_dynamic = False
         # Normal
-        elif self.history or self.dynamic_address:
+        elif self.history or self.guid_dynamic:
             raise ValueError(
                 'History and dynamic address must both be defined, or '
                 'undefined. One cannot exist without the other.')
@@ -669,7 +669,7 @@ class GOBD(_GolixObjectBase):
         # Accommodate SP
         if calculate_dynamic:
             self.history = []
-            self.dynamic_address = Guid(self.address_algo, guid_padding)
+            self.guid_dynamic = Guid(self.address_algo, guid_padding)
         
         # Normal
         packed = self.PARSER.pack(self._control)
@@ -704,7 +704,7 @@ class GOBD(_GolixObjectBase):
                 bytes(packed[calc_slice_dynamic])
             )
             packed[hash_slice_dynamic] = address_dynamic
-            self.dynamic_address = Guid(self.address_algo, address_dynamic)
+            self.guid_dynamic = Guid(self.address_algo, address_dynamic)
         
         # Hash the packed data, until the appropriate point, and then sign
         # Conversion to bytes necessary for PyCryptoDome API
@@ -756,7 +756,7 @@ class GOBD(_GolixObjectBase):
         # Verify the initial hash if history is undefined
         if not self.history:
             self._addresser.verify(
-                self.dynamic_address.address, 
+                self.guid_dynamic.address, 
                 address_data_dynamic
             )
         
@@ -832,6 +832,8 @@ class GARQ(_GolixObjectBase):
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
+        self._author = None
+        
         # Don't overwrite anything we loaded from _control!
         if not _control:
             self.recipient = recipient
@@ -861,6 +863,24 @@ class GARQ(_GolixObjectBase):
     @payload.setter
     def payload(self, value):
         self._control['body']['payload'] = value
+        
+    @property
+    def author(self):
+        ''' Read only property for author. Only available during the 
+        unpacking -> verification process.
+        '''
+        if self._author is None:
+            raise RuntimeError(
+                'GARQ.author is only available during the request unpacking / '
+                'verification process.'
+            )
+            
+    @author.deleter
+    def author(self):
+        ''' Implement the deleter as a return to None to prevent ever raising 
+        AttributeError.
+        '''
+        self._author = None
     
     # # None of this is useful. Pass it pre-encrypted payload instead.
     # # AKA, handle upstream. 

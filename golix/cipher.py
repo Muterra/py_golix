@@ -214,23 +214,28 @@ class _IdentityBase(metaclass=abc.ABCMeta):
 class _ObjectHandlerBase():
     ''' Base class for anything that needs to unpack Golix objects.
     '''
-    @classmethod
-    def unpack_container(cls, packed):
+    @staticmethod
+    def unpack_identity(packed):
+        gidc = GIDC.unpack(packed)
+        return gidc
+    
+    @staticmethod
+    def unpack_container(packed):
         geoc = GEOC.unpack(packed)
         return geoc
         
-    @classmethod
-    def unpack_bind_static(cls, packed):
+    @staticmethod
+    def unpack_bind_static(packed):
         gobs = GOBS.unpack(packed)
         return gobs
         
-    @classmethod
-    def unpack_bind_dynamic(cls, packed):
+    @staticmethod
+    def unpack_bind_dynamic(packed):
         gobd = GOBD.unpack(packed)
         return gobd
         
-    @classmethod
-    def unpack_debind(cls, packed):
+    @staticmethod
+    def unpack_debind(packed):
         gdxx = GDXX.unpack(packed)
         return gdxx
     
@@ -256,6 +261,22 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
         author_guid = gidc.guid
         self = cls(keys=keys, author_guid=author_guid)
         self.packed = gidc.packed
+        return self
+        
+    @classmethod
+    def from_identity(cls, packed):
+        ''' Loads a gidc into a SecondParty. Note that this does not 
+        select the correct SecondParty for any given gidc's ciphersuite.
+        '''
+        gidc = _ObjectHandlerBase.unpack_identity(packed)
+        guid = gidc.guid
+        keys = {
+            'signature': gidc.signature_key,
+            'encryption': gidc.encryption_key,
+            'exchange': gidc.exchange_key
+        }
+        self = cls(keys=keys, author_guid=guid)
+        self.packed = packed
         return self
         
     @classmethod
@@ -690,9 +711,13 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
                     data = obj.guid.address
                 )
         elif isinstance(obj, GARQ):
-            raise TypeError(
+            raise ValueError(
                 'Asymmetric objects cannot be verified by third parties. '
                 'They can only be verified by their recipients.'
+            )
+        elif isinstance(obj, GIDC):
+            raise ValueError(
+                'Identity containers are inherently un-verified.'
             )
         else:
             raise TypeError('Obj must be a Golix object: GIDC, GEOC, etc.')

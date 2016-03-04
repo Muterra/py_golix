@@ -42,8 +42,10 @@ from golix import Guid
 # These are semi-normal imports
 from golix.cipher import FirstParty0
 from golix.cipher import SecondParty0
+from golix.cipher import ThirdParty0
 from golix.cipher import FirstParty1
 from golix.cipher import SecondParty1
+from golix.cipher import ThirdParty1
 
 # These are abnormal (don't use in production) imports.
 from golix._spec import _dummy_signature
@@ -210,7 +212,7 @@ def run():
     # -------------------------------------------------------------------------
     
     # -------------------------------------------------------------------------
-    # Objects
+    # Containers
     geoc1 = fake_first_id.unpack_container(
         packed = container1.packed
     )
@@ -219,6 +221,14 @@ def run():
         author = author_1, 
         secret = secret1, 
         container = geoc1
+    )
+    geoc1a = fake_first_id.unpack_container(
+        packed = container1a.packed
+    )
+    geoc_1ar_plaintext = fake_first_id.receive_container(
+        author = author_1, 
+        secret = secret1a, 
+        container = geoc1a
     )
     
     # Note that the author lookup ideally shouldn't be necessary if you already 
@@ -231,6 +241,14 @@ def run():
         author = author_2, 
         secret = secret2, 
         container = geoc2
+    )
+    geoc2a = first_id_2.unpack_container(
+        packed = container2a.packed
+    )
+    geoc_2ar_plaintext = first_id_2.receive_container(
+        author = author_2, 
+        secret = secret2a, 
+        container = geoc2a
     )
     
     # -------------------------------------------------------------------------
@@ -331,6 +349,43 @@ def run():
         requestor = second_id_1, 
         request = anak2_up
     )
+    
+    
+    # -------------------------------------------------------------------------
+    # Test all verification as a server
+    
+    server0 = ThirdParty0()
+    server1 = ThirdParty1()
+    
+    # Containers
+    
+    server0.verify_object(fake_second_id, geoc1)
+    server0.verify_object(fake_second_id, geoc1a)
+    
+    server1.verify_object(second_id_1, geoc2)
+    server1.verify_object(second_id_1, geoc2a)
+    
+    # Static bindings
+    
+    server0.verify_object(fake_second_id, gobs1)
+    
+    server1.verify_object(second_id_1, gobs2)
+    
+    # Dynamic bindings
+    
+    server0.verify_object(fake_second_id, gobd1)
+    server0.verify_object(fake_second_id, gobd12)
+    
+    server1.verify_object(second_id_1, gobd2)
+    server1.verify_object(second_id_1, gobd22)
+    
+    # Debindings
+    
+    server0.verify_object(fake_second_id, gdxx1)
+    
+    server1.verify_object(second_id_1, gdxx2)
+    
+    # Don't bother testing asymmetric in trashtest (should simply raise)
     
     
     import IPython

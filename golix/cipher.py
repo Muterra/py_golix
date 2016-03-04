@@ -687,7 +687,7 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
                 return cls._verify(
                     public = second_party, 
                     signature = obj.signature,
-                    data = obj.guid
+                    data = obj.guid.address
                 )
         elif isinstance(obj, GARQ):
             raise TypeError(
@@ -833,6 +833,13 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
     def _verify_mac(cls, key, mac, data):
         return True
     
+        
+class ThirdParty0(_ThirdPartyBase):
+    _ciphersuite = 0
+    # Note that, since this classmethod is from a different class, the
+    # cls passed internally will be FirstParty0, NOT ThirdParty0.
+    _verify = FirstParty0._verify
+        
         
 class SecondParty1(_SecondPartyBase, _IdentityBase): 
     _ciphersuite = 1  
@@ -1028,3 +1035,9 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
             
         return True
         
+        
+class ThirdParty1(_ThirdPartyBase):
+    _ciphersuite = 1
+    # Note that, since this classmethod is from a different class, the
+    # cls passed internally will be FirstParty0, NOT ThirdParty0.
+    _verify = FirstParty1._verify

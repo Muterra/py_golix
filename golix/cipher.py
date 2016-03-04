@@ -170,8 +170,8 @@ class _FrozenSHA512(_FrozenHash, SHA512.SHA512Hash):
     
     
 class _IdentityBase(metaclass=abc.ABCMeta):
-    def __init__(self, keys, author_guid):
-        self._author_guid = author_guid
+    def __init__(self, keys, guid):
+        self._guid = guid
         
         try:
             self._signature_key = keys['signature']
@@ -184,8 +184,8 @@ class _IdentityBase(metaclass=abc.ABCMeta):
             ) from e
     
     @property
-    def author_guid(self):
-        return self._author_guid
+    def guid(self):
+        return self._guid
         
     @property
     def ciphersuite(self):
@@ -258,8 +258,8 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
             exchange_key=packed_keys['exchange']
         )
         gidc.pack(cipher=cls._ciphersuite, address_algo=address_algo)
-        author_guid = gidc.guid
-        self = cls(keys=keys, author_guid=author_guid)
+        guid = gidc.guid
+        self = cls(keys=keys, guid=guid)
         self.packed = gidc.packed
         return self
         
@@ -275,7 +275,7 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
             'encryption': gidc.encryption_key,
             'exchange': gidc.exchange_key
         }
-        self = cls(keys=keys, author_guid=guid)
+        self = cls(keys=keys, guid=guid)
         self.packed = packed
         return self
         
@@ -291,28 +291,28 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
 class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
     DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
     
-    def __init__(self, keys=None, author_guid=None, address_algo='default', *args, **kwargs):
+    def __init__(self, keys=None, guid=None, address_algo='default', *args, **kwargs):
         self.address_algo = self._dispatch_address(address_algo)
         
         # Load an existing identity
-        if keys is not None and author_guid is not None:
+        if keys is not None and guid is not None:
             pass
             
         # Catch any improper declaration
-        elif keys is not None or author_guid is not None:
+        elif keys is not None or guid is not None:
             raise TypeError(
                 'Generating an ID manually from existing keys requires '
-                'both keys and author_guid.'
+                'both keys and guid.'
             )
             
         # Generate a new identity
         else:
             keys = self._generate_keys()
             self._second_party = self._generate_second_party(keys, self.address_algo)
-            author_guid = self._second_party.author_guid
+            guid = self._second_party.guid
             
-        # Now dispatch super() with the adjusted keys, author_guid
-        super().__init__(keys=keys, author_guid=author_guid, *args, **kwargs)
+        # Now dispatch super() with the adjusted keys, guid
+        super().__init__(keys=keys, guid=guid, *args, **kwargs)
         
     @classmethod
     def _typecheck_2ndparty(cls, obj):
@@ -336,7 +336,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
                 'the current identity\'s declared ciphersuite.'
             )
         
-        geoc = GEOC(author=self.author_guid)
+        geoc = GEOC(author=self.guid)
         geoc.payload = self._encrypt(secret, plaintext)
         geoc.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(geoc.guid.address)
@@ -345,7 +345,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
     def make_bind_static(self, target):        
         gobs = GOBS(
-            binder = self.author_guid,
+            binder = self.guid,
             target = target
         )
         gobs.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
@@ -355,7 +355,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
     def make_bind_dynamic(self, target, guid_dynamic=None, history=None):
         gobd = GOBD(
-            binder = self.author_guid,
+            binder = self.guid,
             target = target,
             guid_dynamic = guid_dynamic,
             history = history
@@ -367,7 +367,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
     def make_debind(self, target):
         gdxx = GDXX(
-            debinder = self.author_guid,
+            debinder = self.guid,
             target = target
         )
         gdxx.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
@@ -377,21 +377,21 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
     def make_handshake(self, secret, target):
         return AsymHandshake(
-            author = self.author_guid,
+            author = self.guid,
             target = target,
             secret = secret
         )
         
     def make_ack(self, target, status=0):
         return AsymAck(
-            author = self.author_guid,
+            author = self.guid,
             target = target,
             status = status
         )
         
     def make_nak(self, target, status=0):
         return AsymNak(
-            author = self.author_guid,
+            author = self.guid,
             target = target,
             status = status
         )
@@ -431,7 +431,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         payload = self._encrypt_asym(recipient, plaintext)
         del plaintext
         garq = GARQ(
-            recipient = recipient.author_guid,
+            recipient = recipient.guid,
             payload = payload
         )
         
@@ -1013,8 +1013,8 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         ecdh = self._exchange_key.do_exchange(partner._exchange_key)
         
         # Get both of our addresses and then the bitwise XOR of them both
-        my_hash = self.author_guid.address
-        their_hash = partner.author_guid.address
+        my_hash = self.guid.address
+        their_hash = partner.guid.address
         salt = bytes([a ^ b for a, b in zip(my_hash, their_hash)])
         
         key = HKDF(

@@ -49,7 +49,7 @@ from golix import FirstParty
 def run():
     # Check this out!
     known_second_parties = {}
-    # known_second_parties[fake_second_id.author_guid] = fake_second_id
+    # known_second_parties[fake_second_id.guid] = fake_second_id
     
     agent1 = FirstParty()
     agent2 = FirstParty()

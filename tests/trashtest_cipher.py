@@ -66,7 +66,7 @@ def run():
     fake_second_id = fake_first_id.second_party
     
     # Keep them around for later!
-    known_second_parties[fake_second_id.author_guid] = fake_second_id
+    known_second_parties[fake_second_id.guid] = fake_second_id
     
     # -------------------------------------------------------------------------
     # Try it for rls

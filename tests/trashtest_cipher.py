@@ -63,7 +63,8 @@ def run():
     
     # Dummy first-person identity tests with real addresser.
     fake_first_id = FirstParty0(address_algo=1)
-    ffid_pack = fake_first_id._serialize_keys()
+    ffid_pack = fake_first_id._serialize()
+    ffid_unpack = FirstParty0._from_serialized(ffid_pack)
     fake_second_id = fake_first_id.second_party
     
     # Keep them around for later!
@@ -73,7 +74,8 @@ def run():
     # Try it for rls
     first_id_1 = FirstParty1(address_algo=1)
     first_id_2 = FirstParty1(address_algo=1)
-    fid1_pack = first_id_1._serialize_keys()
+    fid1_pack = first_id_1._serialize()
+    fid1_unpack = FirstParty1._from_serialized(fid1_pack)
     second_id_1 = first_id_1.second_party
     second_id_2 = first_id_2.second_party
     

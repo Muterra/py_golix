@@ -662,16 +662,25 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         pass
         
     @abc.abstractmethod
-    def _serialize_keys(self):
+    def _serialize(self):
         ''' Convert private keys into a standardized format. Don't save,
         just return a dictionary with bytes objects:
         
         {
+            'guid': self.guid,
             'signature': self._signature_key,
             'encryption': self._encryption_key,
             'exchange': self._exchange_key
         }
         (etc)
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _from_serialized(cls, serialization):
+        ''' Create an instance of the class from a dictionary as created
+        by cls._serialize.
         '''
         pass
         
@@ -786,12 +795,29 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         keys['exchange'] = _dummy_pubkey
         return keys
         
-    def _serialize_keys(self):
+    def _serialize(self):
         return {
+            'guid': bytes(self.guid),
             'signature': self._signature_key,
             'encryption': self._encryption_key,
             'exchange': self._exchange_key
         }
+        
+    @classmethod
+    def _from_serialized(cls, serialization):
+        try:
+            guid = Guid.from_bytes(serialization['guid'])
+            keys = {
+                'signature': serialization['signature'],
+                'encryption': serialization['encryption'],
+                'exchange': serialization['exchange']
+            }
+        except (TypeError, KeyError) as e:
+            raise TypeError(
+                'serialization must be compatible with _serialize.'
+            ) from e
+            
+        return cls(keys=keys, guid=guid)
     
     @classmethod
     def new_secret(cls):
@@ -941,12 +967,29 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         keys['exchange'] = ECDHPrivate()
         return keys
         
-    def _serialize_keys(self):
+    def _serialize(self):
         return {
+            'guid': bytes(self.guid),
             'signature': self._signature_key.exportKey(format='DER'),
             'encryption': self._encryption_key.exportKey(format='DER'),
             'exchange': bytes(self._exchange_key.private)
         }
+        
+    @classmethod
+    def _from_serialized(cls, serialization):
+        try:
+            guid = Guid.from_bytes(serialization['guid'])
+            keys = {
+                'signature': RSA.import_key(serialization['signature']),
+                'encryption': RSA.import_key(serialization['encryption']),
+                'exchange': ECDHPrivate.load(serialization['exchange'])
+            }
+        except (TypeError, KeyError) as e:
+            raise TypeError(
+                'serialization must be compatible with _serialize.'
+            ) from e
+            
+        return cls(keys=keys, guid=guid)
     
     @classmethod
     def new_secret(cls):

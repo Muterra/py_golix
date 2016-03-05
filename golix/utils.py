@@ -124,7 +124,7 @@ class Guid():
         
     def __hash__(self):
         address = self.address or b''
-        condensed = int.to_bytes(self.algo, length=1, byteorder='big') + address
+        condensed = bytes(self)
         return hash(condensed)
         
     def __eq__(self, other):
@@ -156,6 +156,21 @@ class Guid():
             pass
         else:
             self._address = address
+            
+    def __bytes__(self):
+        ''' For now, quick and dirty like.
+        '''
+        return int.to_bytes(self.algo, length=1, byteorder='big') + self.address
+        
+    @classmethod
+    def from_bytes(cls, data):
+        ''' Trashy method for building a Guid from bytes. Should 
+        probably rework to do some type checking or summat, or use the
+        good ole smartyparser. For now, quick and dirty like.
+        '''
+        algo = data[0:1]
+        address = data[1:]
+        return cls(algo=algo, address=address)
     
     
 _secret_parser = SmartyParser()

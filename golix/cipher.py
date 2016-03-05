@@ -661,6 +661,20 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         '''
         pass
         
+    @abc.abstractmethod
+    def _serialize_keys(self):
+        ''' Convert private keys into a standardized format. Don't save,
+        just return a dictionary with bytes objects:
+        
+        {
+            'signature': self._signature_key,
+            'encryption': self._encryption_key,
+            'exchange': self._exchange_key
+        }
+        (etc)
+        '''
+        pass
+        
         
 class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
     ''' Subclass this (on a per-ciphersuite basis) for servers, and 
@@ -771,6 +785,13 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         keys['encryption'] = _dummy_pubkey
         keys['exchange'] = _dummy_pubkey
         return keys
+        
+    def _serialize_keys(self):
+        return {
+            'signature': self._signature_key,
+            'encryption': self._encryption_key,
+            'exchange': self._exchange_key
+        }
     
     @classmethod
     def new_secret(cls):
@@ -919,6 +940,13 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         keys['encryption'] = RSA.generate(4096)
         keys['exchange'] = ECDHPrivate()
         return keys
+        
+    def _serialize_keys(self):
+        return {
+            'signature': self._signature_key.exportKey(format='DER'),
+            'encryption': self._encryption_key.exportKey(format='DER'),
+            'exchange': bytes(self._exchange_key.private)
+        }
     
     @classmethod
     def new_secret(cls):

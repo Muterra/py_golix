@@ -264,11 +264,11 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
         return self
         
     @classmethod
-    def from_identity(cls, packed):
-        ''' Loads a gidc into a SecondParty. Note that this does not 
-        select the correct SecondParty for any given gidc's ciphersuite.
+    def from_identity(cls, gidc):
+        ''' Loads an unpacked gidc into a SecondParty. Note that this 
+        does not select the correct SecondParty for any given gidc's 
+        ciphersuite.
         '''
-        gidc = _ObjectHandlerBase.unpack_identity(packed)
         guid = gidc.guid
         keys = {
             'signature': gidc.signature_key,
@@ -276,6 +276,15 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
             'exchange': gidc.exchange_key
         }
         self = cls(keys=keys, guid=guid)
+        return self
+        
+    @classmethod
+    def from_packed(cls, packed):
+        ''' Loads a packed gidc into a SecondParty. Also does not select
+        the correct SecondParty for the packed gidc's ciphersuite.
+        '''
+        gidc = _ObjectHandlerBase.unpack_identity(packed)
+        self = cls.from_identity(gidc)
         self.packed = packed
         return self
         
@@ -704,6 +713,23 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             )
         return address_algo
         
+    @staticmethod
+    def unpack_object(packed):
+        ''' Unpacks any Golix object.
+        '''
+        success = False
+        for golix_format in (GIDC, GEOC, GOBS, GOBD, GDXX, GARQ):
+            try:
+                obj = golix_format.unpack(packed)
+                success = True
+            except ParseError:
+                pass
+        if not success:
+            raise ParseError(
+                'Packed data does not appear to be a Golix object.'
+            )
+        return obj
+        
     @classmethod
     def unpack_request(cls, packed):
         ''' Unpack public everything from a request.
@@ -723,8 +749,7 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         raises SecurityError if verification fails.
         returns True on success.
         '''
-        if isinstance(obj, GIDC) or \
-            isinstance(obj, GEOC) or \
+        if isinstance(obj, GEOC) or \
             isinstance(obj, GOBS) or \
             isinstance(obj, GOBD) or \
             isinstance(obj, GDXX):

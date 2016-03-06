@@ -363,31 +363,67 @@ def run():
     
     # Containers
     
-    server0.verify_object(fake_second_id, geoc1)
-    server0.verify_object(fake_second_id, geoc1a)
+    server0.verify_object(
+        second_party = fake_second_id,
+        obj = geoc1
+    )
+    server0.verify_object(
+        second_party = fake_second_id,
+        obj = geoc1a
+    )
     
-    server1.verify_object(second_id_1, geoc2)
-    server1.verify_object(second_id_1, geoc2a)
+    server1.verify_object(
+        second_party = second_id_1, 
+        obj = geoc2
+    )
+    server1.verify_object(
+        second_party = second_id_1,
+        obj = geoc2a
+    )
     
     # Static bindings
     
-    server0.verify_object(fake_second_id, gobs1)
+    server0.verify_object(
+        second_party = fake_second_id,
+        obj = gobs1
+    )
     
-    server1.verify_object(second_id_1, gobs2)
+    server1.verify_object(
+        second_party = second_id_1,
+        obj = gobs2
+    )
     
     # Dynamic bindings
     
-    server0.verify_object(fake_second_id, gobd1)
-    server0.verify_object(fake_second_id, gobd12)
+    server0.verify_object(
+        second_party = fake_second_id,
+        obj = gobd1
+    )
+    server0.verify_object(
+        second_party = fake_second_id,
+        obj = gobd12
+    )
     
-    server1.verify_object(second_id_1, gobd2)
-    server1.verify_object(second_id_1, gobd22)
+    server1.verify_object(
+        second_party = second_id_1,
+        obj = gobd2
+    )
+    server1.verify_object(
+        second_party = second_id_1,
+        obj = gobd22
+    )
     
     # Debindings
     
-    server0.verify_object(fake_second_id, gdxx1)
+    server0.verify_object(
+        second_party = fake_second_id,
+        obj = gdxx1
+    )
     
-    server1.verify_object(second_id_1, gdxx2)
+    server1.verify_object(
+        second_party = second_id_1,
+        obj = gdxx2
+    )
     
     # Don't bother testing asymmetric in trashtest (should simply raise)
     

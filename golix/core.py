@@ -36,6 +36,7 @@ golix: A python library for Golix protocol object manipulation.
 __all__ = [
     'Guid', 
     'SecurityError', 
+    'ParseError',
     'Secret',
     'FirstParty',
     'SecondParty',
@@ -46,6 +47,7 @@ __all__ = [
 
 # Global dependencies
 # import collections
+from smartyparse import ParseError
 
 # Inter-package dependencies that pass straight through to __all__
 from .utils import Guid

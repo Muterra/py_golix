@@ -51,15 +51,18 @@ def run():
     known_second_parties = {}
     # known_second_parties[fake_second_id.guid] = fake_second_id
     
+    server1 = ThirdParty()
+    
     agent1 = FirstParty()
     agent2 = FirstParty()
     
     reader1 = agent1.second_party
     reader2 = agent2.second_party
     # Test loading from file
-    reader2 = SecondParty.from_identity(reader2.packed)
+    packed_id = reader2.packed
+    unpacked_id = server1.unpack_object(packed_id)
     
-    server1 = ThirdParty()
+    reader2 = SecondParty.from_identity(unpacked_id)
     
     # import IPython
     # IPython.embed()

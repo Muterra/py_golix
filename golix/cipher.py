@@ -243,6 +243,9 @@ class _ObjectHandlerBase():
 class _SecondPartyBase(metaclass=abc.ABCMeta):
     @classmethod
     def from_keys(cls, keys, address_algo):
+        ''' Creates a secondparty from unpacked keys -- DON'T use this
+        if you have an existing MIDC.
+        '''
         try:
             # Turn them into bytes first.
             packed_keys = cls._pack_keys(keys)
@@ -270,11 +273,11 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
         ciphersuite.
         '''
         guid = gidc.guid
-        keys = {
+        keys = cls._unpack_keys({
             'signature': gidc.signature_key,
             'encryption': gidc.encryption_key,
             'exchange': gidc.exchange_key
-        }
+        })
         self = cls(keys=keys, guid=guid)
         return self
         
@@ -293,6 +296,14 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
     def _pack_keys(cls, keys):
         ''' Convert self.keys from objects used for crypto operations
         into bytes-like objects suitable for output into a GIDC.
+        '''
+        pass
+        
+    @classmethod
+    @abc.abstractmethod
+    def _unpack_keys(cls, keys):
+        ''' Convert keys dic into objects used for crypto operations
+        from bytes-like objects used in GIDC.
         '''
         pass
         
@@ -789,6 +800,10 @@ class SecondParty0(_SecondPartyBase, _IdentityBase):
     def _pack_keys(cls, keys):
         return keys
         
+    @classmethod
+    def _unpack_keys(cls, keys):
+        return keys
+        
         
 class FirstParty0(_FirstPartyBase, _IdentityBase):
     ''' FOR TESTING PURPOSES ONLY. 
@@ -945,11 +960,29 @@ class SecondParty1(_SecondPartyBase, _IdentityBase):
     @classmethod
     def _pack_keys(cls, keys):
         packkeys = {
-            'signature': int.to_bytes(keys['signature'].n, length=512, byteorder='big'),
-            'encryption': int.to_bytes(keys['encryption'].n, length=512, byteorder='big'),
+            'signature': int.to_bytes(
+                                    keys['signature'].n, 
+                                    length=512, 
+                                    byteorder='big'),
+            'encryption': int.to_bytes(
+                                    keys['encryption'].n, 
+                                    length=512, 
+                                    byteorder='big'),
             'exchange': keys['exchange'].public,
         }
         return packkeys
+        
+    @classmethod
+    def _unpack_keys(cls, keys):
+        n_sig = int.from_bytes(keys['signature'], byteorder='big')
+        n_enc = int.from_bytes(keys['encryption'], byteorder='big')
+        
+        unpackkeys = {
+            'signature': RSA.construct((n_sig, 65537)),
+            'encryption': RSA.construct((n_enc, 65537)),
+            'exchange': ECDHPublic(bytes(keys['exchange'])),
+        }
+        return unpackkeys
 
 
 # Signature constants.

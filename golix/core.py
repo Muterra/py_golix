@@ -34,9 +34,9 @@ golix: A python library for Golix protocol object manipulation.
 # Control * imports. Therefore controls what is available to toplevel
 # package through __init__.py
 __all__ = [
-    'Guid', 
     'SecurityError', 
     'ParseError',
+    'Guid', 
     'Secret',
     'FirstParty',
     'SecondParty',

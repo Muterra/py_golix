@@ -722,7 +722,8 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             try:
                 obj = golix_format.unpack(packed)
                 success = True
-            except ParseError:
+            # Hm, don't really like this.
+            except (ParseError, TypeError):
                 pass
         if not success:
             raise ParseError(

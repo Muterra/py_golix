@@ -180,6 +180,8 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         # If we're creating an object from an unpacked one, just load directly
         if _control:
             self._control = _control
+            # This can cause issues if _control is misused.
+            self._signed = True
             
         # Creating from scratch. Now we have some actual work to do.
         else:

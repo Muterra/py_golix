@@ -130,7 +130,7 @@ class Guid():
     def __eq__(self, other):
         try:
             return (self.algo == other.algo and self.address == other.address)
-        except AttributeError as e:
+        except (AttributeError, TypeError) as e:
             raise TypeError(
                 'Cannot compare Guid objects to non-Guid-like objects.'
             ) from e
@@ -299,6 +299,27 @@ class Secret():
             'seed=' + repr(self.seed) + ', '
             'version=' + repr(self.version) + ')'
         )
+        
+    def __hash__(self):
+        return (
+            hash(self.cipher) + 
+            hash(self.version) + 
+            hash(self.key) + 
+            hash(self.seed)
+        )
+        
+    def __eq__(self, other):
+        try:
+            return (
+                self.cipher == other.cipher and 
+                self.version == other.version and
+                self.key == other.key and
+                self.seed == other.seed
+            )
+        except (AttributeError, TypeError) as e:
+            raise TypeError(
+                'Cannot compare Secret objects to non-Secret-like objects.'
+            ) from e
 
 
 # ----------------------------------------------------------------------

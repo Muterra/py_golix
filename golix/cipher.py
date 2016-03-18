@@ -347,6 +347,8 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
     
     @property
     def second_party(self):
+        # Note: this is going to error out if we're loading an identity, since
+        # we're not currently passing in the packed identity.
         return self._second_party
          
     def make_container(self, secret, plaintext):
@@ -991,7 +993,7 @@ class SecondParty1(_SecondPartyBase, _IdentityBase):
 # Don't include these in the class 1. to avoid cluttering it and 2. to avoid
 # accidentally passing self
 _PSS_SALT_LENGTH = SHA512.digest_size
-_PSS_MGF = lambda x, y: MGF1(x, y, SHA512)
+_RSA_MGF = lambda x, y: MGF1(x, y, SHA512)
 # example calls:
 # h = _FrozenSHA512(data)
 # PSS.new(private_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).sign(h)
@@ -1093,7 +1095,7 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         h = _FrozenSHA512(data)
         signer = PSS.new(
             self._signature_key, 
-            mask_func=_PSS_MGF, 
+            mask_func=_RSA_MGF, 
             salt_bytes=_PSS_SALT_LENGTH
         )
         return signer.sign(h)
@@ -1110,7 +1112,7 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         cls._typecheck_2ndparty(public)
         
         h = _FrozenSHA512(data)
-        signer = PSS.new(public._signature_key, mask_func=_PSS_MGF, salt_bytes=_PSS_SALT_LENGTH)
+        signer = PSS.new(public._signature_key, mask_func=_RSA_MGF, salt_bytes=_PSS_SALT_LENGTH)
         try:
             signer.verify(h, signature)
         except ValueError as e:
@@ -1125,13 +1127,23 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         formatted with all necessary components for a public key.
         '''
         self._typecheck_2ndparty(public)
-        cipher = OAEP.new(public._encryption_key)
+        cipher = OAEP.new(
+            public._encryption_key, 
+            hashAlgo = SHA512, 
+            mgfunc = _RSA_MGF,
+            label=b''
+        )
         return cipher.encrypt(data)
         
     def _decrypt_asym(self, data):
         ''' Placeholder asymmetric decryptor.
         '''
-        cipher = OAEP.new(self._encryption_key)
+        cipher = OAEP.new(
+            self._encryption_key,
+            hashAlgo = SHA512,
+            mgfunc = _RSA_MGF,
+            label = b''
+        )
         plaintext = cipher.decrypt(data)
         del cipher
         return plaintext

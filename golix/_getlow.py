@@ -876,6 +876,7 @@ class GARQ(_GolixObjectBase):
                 'GARQ.author is only available during the request unpacking / '
                 'verification process.'
             )
+        return self._author
             
     @author.deleter
     def author(self):

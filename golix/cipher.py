@@ -525,8 +525,6 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         garq = GARQ.unpack(packed)
         plaintext = self._decrypt_asym(garq.payload)
         
-        # Try all object handlers available for asymmetric payloads
-        parse_success = False
         # Could do this with a loop, but it gets awkward when trying to
         # assign stuff to the resulting object.
         try:

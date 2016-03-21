@@ -302,9 +302,9 @@ class Secret():
         
     def __hash__(self):
         return (
-            hash(self.cipher) + 
-            hash(self.version) + 
-            hash(self.key) + 
+            hash(self.cipher) ^ 
+            hash(self.version) ^ 
+            hash(self.key) ^ 
             hash(self.seed)
         )
         

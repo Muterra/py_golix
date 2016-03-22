@@ -211,7 +211,7 @@ class _IdentityBase(metaclass=abc.ABCMeta):
         return True
         
         
-class _ObjectHandlerBase():
+class _ObjectHandlerBase(metaclass=abc.ABCMeta):
     ''' Base class for anything that needs to unpack Golix objects.
     '''
     @staticmethod
@@ -238,6 +238,40 @@ class _ObjectHandlerBase():
     def unpack_debind(packed):
         gdxx = GDXX.unpack(packed)
         return gdxx
+        
+    @staticmethod
+    @abc.abstractmethod
+    def unpack_request(packed):
+        ''' Unpacks requests. Different for firstparties and 
+        thirdparties, but used by both in unpack_any.
+        '''
+        pass
+        
+    @classmethod
+    def unpack_any(cls, packed):
+        ''' Try to unpack using any available parser.
+        Raises TypeError if no parser is found.
+        '''
+        found = False
+        for handler in (
+            cls.unpack_identity,
+            cls.unpack_container,
+            cls.unpack_bind_static,
+            cls.unpack_bind_dynamic,
+            cls.unpack_debind,
+            cls.unpack_request
+        ):
+            try:
+                unpacked = handler(packed)
+            except:
+                pass
+            else:
+                found = True
+        if not found:
+            raise TypeError(
+                'Packed does not appear to be a packed Golix object.'
+            )
+        return unpacked
     
     
 class _SecondPartyBase(metaclass=abc.ABCMeta):

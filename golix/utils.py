@@ -212,7 +212,7 @@ class Secret():
     # We expect to have a lot of secrets, so let's add slots. Also, there's
     # a case to be made for discouraging people from using Secrets for
     # anything other than, well, secrets.
-    __slots__ = ['_key', '_seed', '_version', '_cipher']
+    __slots__ = ['_key', '_seed', '_version', '_cipher', '__weakref__']
     MAGIC = _secret_parser['magic'].parser.value
     
     def __init__(self, cipher, key, seed=None, version='latest'):

@@ -168,7 +168,7 @@ class Guid():
         probably rework to do some type checking or summat, or use the
         good ole smartyparser. For now, quick and dirty like.
         '''
-        algo = data[0:1]
+        algo = int.from_bytes(data[0:1], byteorder='big')
         address = data[1:]
         return cls(algo=algo, address=address)
     

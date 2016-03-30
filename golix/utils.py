@@ -38,9 +38,216 @@ from collections import namedtuple
 from Crypto.Hash import SHA512
 
 from smartyparse import SmartyParser
+from smartyparse import ListyParser
 from smartyparse import ParseHelper
 from smartyparse import parsers
 from smartyparse import references
+
+# ----------------------------------------------------------------------
+# Address algorithms
+
+class _AddressAlgoBase(metaclass=abc.ABCMeta):
+    @classmethod
+    def create(cls, data):
+        ''' Creates an address (note: not the whole guid) from data.
+        '''
+        h = cls._HASH_ALGO.new(data)
+        digest = bytes(h.digest())
+        # So this isn't really making much of a difference, necessarily, but
+        # it's good insurance against (accidental or malicious) length
+        # extension problems.
+        del h
+        return digest
+        
+    @classmethod
+    def verify(cls, address, data):
+        ''' Verifies an address (note: not the whole guid) from data.
+        '''
+        test = cls.create(data)
+        if test != address:
+            raise SecurityError('Failed to verify address integrity.')
+        else:
+            return True
+    
+    
+class AddressAlgo0(_AddressAlgoBase):
+    ''' FOR TESTING PURPOSES ONLY. 
+    
+    Entirely inoperative. Correct API, but ignores all input, creating
+    only a symbolic output.
+    '''
+    _HASH_ALGO = None
+    ADDRESS_LENGTH = 64
+    
+    @classmethod
+    def create(cls, data):
+        return _dummy_address
+        
+    @classmethod
+    def verify(cls, address, data):
+        return True
+    
+    
+class AddressAlgo1(_AddressAlgoBase):
+    ''' SHA512
+    '''
+    _HASH_ALGO = SHA512
+    ADDRESS_LENGTH = _HASH_ALGO.digest_size
+
+# Zero should be rendered inop, IE ignore all input data and generate
+# symbolic representations
+ADDRESS_ALGOS = {
+    0: AddressAlgo0,
+    1: AddressAlgo1
+}
+    
+def hash_lookup(num):
+    try:
+        return ADDRESS_ALGOS[num]
+    except KeyError as e:
+        raise ValueError('Address algo "' + str(num) + '" is undefined.') from e
+
+
+# ----------------------------------------------------------------------
+# Mock objects for zeroth hash/ciphersuites
+
+_dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
+_dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
+_dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
+_dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
+_dummy_pubkey = b'[ ' + (b'-') * 21 + b' MOCK PUBLIC KEY ' + (b'-') * 22 + b' ]'
+
+# ----------------------------------------------------------------------
+# Hash algo identifier / length block
+
+_hash_algo_lookup = {
+    0: ParseHelper(parsers.Blob(length=len(_dummy_address))),
+    1: ParseHelper(parsers.Blob(length=64))
+}
+
+# ----------------------------------------------------------------------
+# Guids and parsers therefore.
+
+
+class Guid():
+    ''' Extremely lightweight class for GUIDs. Implements __hash__ to 
+    allow it to be used as a dictionary key.
+    '''
+    __slots__ = ['_algo', '_address']
+    
+    def __init__(self, algo, address):
+        self.algo = algo
+        self.address = address
+        
+    def __getitem__(self, item):
+        return getattr(self, item)
+        
+    def __setitem__(self, item, value):
+        setattr(self, item, value)
+        
+    def __hash__(self):
+        address = self.address or b''
+        condensed = bytes(self)
+        return hash(condensed)
+        
+    def __eq__(self, other):
+        try:
+            return (self.algo == other.algo and self.address == other.address)
+        except (AttributeError, TypeError) as e:
+            raise TypeError(
+                'Cannot compare Guid objects to non-Guid-like objects.'
+            ) from e
+            
+    def __repr__(self):
+        c = type(self).__name__
+        return (
+            c + 
+            '(algo=' + repr(self.algo) + ', '
+            'address=' + repr(self.address) + ')'
+        )
+        
+    @property
+    def algo(self):
+        return self._algo
+        
+    @algo.setter
+    def algo(self, value):
+        if value in ADDRESS_ALGOS:
+            self._algo = value
+        else:
+            raise ValueError('Invalid address algorithm.')
+            
+    @property
+    def address(self):
+        return self._address
+            
+    @address.setter
+    def address(self, address):
+        if self.algo == 0 and address is None:
+            address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
+            
+        expected_length = hash_lookup(self.algo).ADDRESS_LENGTH
+        if len(address) != expected_length:
+            raise ValueError('Address length does not match algorithm.')
+        else:
+            self._address = address
+            
+    def __bytes__(self):
+        ''' For now, quick and dirty like.
+        '''
+        return int.to_bytes(self.algo, length=1, byteorder='big') + self.address
+        
+    @classmethod
+    def from_bytes(cls, data, autoconsume=False):
+        ''' Trashy method for building a Guid from bytes. Should 
+        probably rework to do some type checking or summat, or use the
+        good ole smartyparser. For now, quick and dirty like.
+        '''
+        algo = int.from_bytes(data[0:1], byteorder='big')
+        address = data[1:]
+        return cls(algo=algo, address=address)
+        
+        
+_dummy_guid = Guid(0, _dummy_address)
+
+
+def _guid_transform(unpacked_spo):
+    ''' Transforms an unpacked SmartyParseObject into a .utils.Guid.
+    If using algo zero, also eliminates the address and replaces with
+    None.
+    '''
+    guid = Guid(algo=unpacked_spo['algo'], address=unpacked_spo['address'])
+    
+    if guid.algo == 0:
+        guid.address = None
+        
+    return guid
+
+
+def generate_guid_parser():
+    guid_parser = SmartyParser()
+    guid_parser['algo'] = ParseHelper(parsers.Int8(signed=False))
+    guid_parser['address'] = None
+
+    @references(guid_parser)
+    def _guid_format(self, algo):
+        try:
+            self['address'] = _hash_algo_lookup[algo]
+        except KeyError as e:
+            print(algo)
+            raise ValueError('Improper hash algorithm declaration.') from e
+            
+    guid_parser['algo'].register_callback('prepack', _guid_format)
+    guid_parser['algo'].register_callback('postunpack', _guid_format)
+    
+    # Don't forget to transform the object back to a utils.Guid
+    guid_parser.register_callback('postunpack', _guid_transform, modify=True)
+    
+    return guid_parser
+    
+    
+def generate_guidlist_parser():    
+    return ListyParser(parsers=[generate_guid_parser()])
 
 # ----------------------------------------------------------------------
 # Generalized object dispatchers
@@ -104,73 +311,6 @@ cipher_length_lookup = {
 
 class SecurityError(RuntimeError):
     pass
-
-
-class Guid():
-    ''' Extremely lightweight class for GUIDs. Implements __hash__ to 
-    allow it to be used as a dictionary key.
-    '''
-    __slots__ = ['algo', '_address']
-    
-    def __init__(self, algo, address):
-        self.algo = algo
-        self.address = address
-        
-    def __getitem__(self, item):
-        return getattr(self, item)
-        
-    def __setitem__(self, item, value):
-        setattr(self, item, value)
-        
-    def __hash__(self):
-        address = self.address or b''
-        condensed = bytes(self)
-        return hash(condensed)
-        
-    def __eq__(self, other):
-        try:
-            return (self.algo == other.algo and self.address == other.address)
-        except (AttributeError, TypeError) as e:
-            raise TypeError(
-                'Cannot compare Guid objects to non-Guid-like objects.'
-            ) from e
-            
-    def __repr__(self):
-        c = type(self).__name__
-        return (
-            c + 
-            '(algo=' + repr(self.algo) + ', '
-            'address=' + repr(self.address) + ')'
-        )
-            
-    @property
-    def address(self):
-        if self.algo == 0:
-            return _dummy_address
-        else:
-            return self._address
-            
-    @address.setter
-    def address(self, address):
-        if self.algo == 0:
-            pass
-        else:
-            self._address = address
-            
-    def __bytes__(self):
-        ''' For now, quick and dirty like.
-        '''
-        return int.to_bytes(self.algo, length=1, byteorder='big') + self.address
-        
-    @classmethod
-    def from_bytes(cls, data):
-        ''' Trashy method for building a Guid from bytes. Should 
-        probably rework to do some type checking or summat, or use the
-        good ole smartyparser. For now, quick and dirty like.
-        '''
-        algo = int.from_bytes(data[0:1], byteorder='big')
-        address = data[1:]
-        return cls(algo=algo, address=address)
     
     
 _secret_parser = SmartyParser()
@@ -320,81 +460,6 @@ class Secret():
             raise TypeError(
                 'Cannot compare Secret objects to non-Secret-like objects.'
             ) from e
-
-
-# ----------------------------------------------------------------------
-# Mock objects for zeroth hash/ciphersuites
-
-_dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
-_dummy_guid = Guid(0, _dummy_address)
-_dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
-_dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
-_dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
-_dummy_pubkey = b'[ ' + (b'-') * 21 + b' MOCK PUBLIC KEY ' + (b'-') * 22 + b' ]'
-
-# ----------------------------------------------------------------------
-# Address algorithms
-
-class _AddressAlgoBase(metaclass=abc.ABCMeta):
-    @classmethod
-    def create(cls, data):
-        ''' Creates an address (note: not the whole guid) from data.
-        '''
-        h = cls._HASH_ALGO.new(data)
-        digest = bytes(h.digest())
-        # So this isn't really making much of a difference, necessarily, but
-        # it's good insurance against (accidental or malicious) length
-        # extension problems.
-        del h
-        return digest
-        
-    @classmethod
-    def verify(cls, address, data):
-        ''' Verifies an address (note: not the whole guid) from data.
-        '''
-        test = cls.create(data)
-        if test != address:
-            raise SecurityError('Failed to verify address integrity.')
-        else:
-            return True
-    
-    
-class AddressAlgo0(_AddressAlgoBase):
-    ''' FOR TESTING PURPOSES ONLY. 
-    
-    Entirely inoperative. Correct API, but ignores all input, creating
-    only a symbolic output.
-    '''
-    _HASH_ALGO = None
-    ADDRESS_LENGTH = len(_dummy_address)
-    
-    @classmethod
-    def create(cls, data):
-        return _dummy_address
-        
-    @classmethod
-    def verify(cls, address, data):
-        return True
-    
-    
-class AddressAlgo1(_AddressAlgoBase):
-    ''' SHA512
-    '''
-    _HASH_ALGO = SHA512
-    ADDRESS_LENGTH = _HASH_ALGO.digest_size
-
-# Zero should be rendered inop, IE ignore all input data and generate
-# symbolic representations
-ADDRESS_ALGOS = {
-    0: AddressAlgo0,
-    1: AddressAlgo1
-}
-    
-def hash_lookup(num):
-    try:
-        return ADDRESS_ALGOS[num]
-    except KeyError as e:
-        raise ValueError('Address algo "' + str(num) + '" is undefined.') from e
 
 
 # ----------------------------------------------------------------------

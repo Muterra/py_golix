@@ -52,50 +52,8 @@ from .utils import _dummy_signature
 from .utils import _dummy_address
 from .utils import _dummy_guid
 from .utils import _dummy_pubkey
-
-# ----------------------------------------------------------------------
-# Hash algo identifier / length block
-
-_hash_algo_lookup = {
-    0: ParseHelper(parsers.Literal(_dummy_address, verify=False)),
-    1: ParseHelper(parsers.Blob(length=64))
-}
-
-# ----------------------------------------------------------------------
-# GUID parsing block
-
-def _guid_transform(unpacked_spo):
-    ''' Transforms an unpacked SmartyParseObject into a .utils.Guid.
-    If using algo zero, also eliminates the address and replaces with
-    None.
-    '''
-    guid = Guid(algo=unpacked_spo['algo'], address=unpacked_spo['address'])
-    
-    if guid.algo == 0:
-        guid.address = None
-        
-    return guid
-
-def generate_guid_parser():
-    guid_parser = SmartyParser()
-    guid_parser['algo'] = ParseHelper(parsers.Int8(signed=False))
-    guid_parser['address'] = None
-
-    @references(guid_parser)
-    def _guid_format(self, algo):
-        try:
-            self['address'] = _hash_algo_lookup[algo]
-        except KeyError as e:
-            print(algo)
-            raise ValueError('Improper hash algorithm declaration.') from e
-            
-    guid_parser['algo'].register_callback('prepack', _guid_format)
-    guid_parser['algo'].register_callback('postunpack', _guid_format)
-    
-    # Don't forget to transform the object back to a utils.Guid
-    guid_parser.register_callback('postunpack', _guid_transform, modify=True)
-    
-    return guid_parser
+from .utils import generate_guid_parser
+from .utils import generate_guidlist_parser
 
 # ----------------------------------------------------------------------
 # Crypto parsers definition block
@@ -133,7 +91,7 @@ _pubkey_parsers_exchange[2] = ParseHelper(parsers.Blob(length=32))
 # ----------------------------------------------------------------------
 # Use this whenever a GUID list is required
 
-_guidlist = ListyParser(parsers=[generate_guid_parser()])
+_guidlist = generate_guidlist_parser()
 
 # ----------------------------------------------------------------------
 # GIDC format blocks

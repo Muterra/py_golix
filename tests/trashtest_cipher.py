@@ -37,7 +37,7 @@ import sys
 import collections
 
 # These are normal imports
-from golix import Guid
+from golix import Ghid
 
 # These are semi-normal imports
 from golix.cipher import FirstParty0
@@ -68,7 +68,7 @@ def run():
     fake_second_id = fake_first_id.second_party
     
     # Keep them around for later!
-    known_second_parties[fake_second_id.guid] = fake_second_id
+    known_second_parties[fake_second_id.ghid] = fake_second_id
     
     # -------------------------------------------------------------------------
     # Try it for rls
@@ -109,55 +109,55 @@ def run():
     # -------------------------------------------------------------------------
     # Now try making static bindings for them.
     bind1 = fake_first_id.make_bind_static(
-        target = container1.guid
+        target = container1.ghid
     )
     bind2 = first_id_1.make_bind_static(
-        target = container2.guid
+        target = container2.ghid
     )
     
     # -------------------------------------------------------------------------
     # Now try making dynamic bindings for them.
     bind1d = fake_first_id.make_bind_dynamic(
-        target = container1.guid
+        target = container1.ghid
     )
     bind2d = first_id_1.make_bind_dynamic(
-        target = container2.guid
+        target = container2.ghid
     )
     
     # And try making dynamic bindings with history now.
     bind1d2 = fake_first_id.make_bind_dynamic(
-        target = container1a.guid,
-        guid_dynamic = bind1d.guid_dynamic,
-        history = [bind1d.guid]
+        target = container1a.ghid,
+        ghid_dynamic = bind1d.ghid_dynamic,
+        history = [bind1d.ghid]
     )
-    assert bind1d2.guid_dynamic == bind1d.guid_dynamic
+    assert bind1d2.ghid_dynamic == bind1d.ghid_dynamic
     
     bind2d2 = first_id_1.make_bind_dynamic(
-        target = container2a.guid,
-        guid_dynamic = bind2d.guid_dynamic,
-        history = [bind2d.guid]
+        target = container2a.ghid,
+        ghid_dynamic = bind2d.ghid_dynamic,
+        history = [bind2d.ghid]
     )
-    assert bind2d2.guid_dynamic == bind2d.guid_dynamic
+    assert bind2d2.ghid_dynamic == bind2d.ghid_dynamic
     
     # -------------------------------------------------------------------------
     # And go ahead and make debindings for everything.
     debind1 = fake_first_id.make_debind(
-        target = bind1.guid
+        target = bind1.ghid
     )
     debind1d = fake_first_id.make_debind(
-        target = bind1d.guid_dynamic
+        target = bind1d.ghid_dynamic
     )
     debind2 = first_id_1.make_debind(
-        target = bind2.guid
+        target = bind2.ghid
     )
     debind2d = first_id_1.make_debind(
-        target = bind2d.guid_dynamic
+        target = bind2d.ghid_dynamic
     )
     
     # -------------------------------------------------------------------------
     # Asymmetric handshakes
     ahand1 = fake_first_id.make_handshake(
-        target = container1.guid,
+        target = container1.ghid,
         secret = secret1
     )
     areq1a = fake_first_id.make_request(
@@ -166,7 +166,7 @@ def run():
     )
     
     ahand2 = first_id_1.make_handshake(
-        target = container2.guid,
+        target = container2.ghid,
         secret = secret2
     )
     areq2a = first_id_1.make_request(
@@ -177,7 +177,7 @@ def run():
     # -------------------------------------------------------------------------
     # Asymmetric ack
     aack1 = fake_first_id.make_ack(
-        target = areq1a.guid
+        target = areq1a.ghid
     )
     areq1b = fake_first_id.make_request(
         recipient = fake_second_id,
@@ -185,7 +185,7 @@ def run():
     )
     
     aack2 = first_id_1.make_ack(
-        target = areq2a.guid
+        target = areq2a.ghid
     )
     areq2b = first_id_1.make_request(
         recipient = second_id_2,
@@ -195,7 +195,7 @@ def run():
     # -------------------------------------------------------------------------
     # Asymmetric nak
     anak1 = fake_first_id.make_nak(
-        target = areq1a.guid
+        target = areq1a.ghid
     )
     areq1c = fake_first_id.make_request(
         recipient = fake_second_id,
@@ -203,7 +203,7 @@ def run():
     )
     
     anak2 = first_id_1.make_nak(
-        target = areq2a.guid
+        target = areq2a.ghid
     )
     areq2c = first_id_1.make_request(
         recipient = second_id_2,

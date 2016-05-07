@@ -63,7 +63,7 @@ from .utils import cipher_length_lookup
 from .utils import hash_lookup
 
 # Normal
-from .utils import Guid
+from .utils import Ghid
 from .utils import SecurityError
 from .utils import Secret
 
@@ -94,28 +94,28 @@ from .utils import Secret
 # Strategy for gratuitous duck-punching: 
 # 1. Declare a mutable caching object: []
 # 2. Generate a caching callback on the fly, referencing that object
-# 3. Register that callback on the fly as postpack on guid, with modify=False
-# 4. That callback appends the guid's offset to the cache object
+# 3. Register that callback on the fly as postpack on ghid, with modify=False
+# 4. That callback appends the ghid's offset to the cache object
 # 5. Register a second callback on the entire _control
 # 6. That callback uses the offset to rewrite the hash with an actual hash
 # 7. Rewrite signature using the length of the hash and the cached hash offset
 
 # For other places this affects, search for "# Accommodate SP"
         
-# This gets called postpack with modify=True on ['guid'], referencing
+# This gets called postpack with modify=True on ['ghid'], referencing
 # the _control object.
-def _generate_offset_cacher(cache, guid_parser):
+def _generate_offset_cacher(cache, ghid_parser):
     # Relies upon late-binding closures to access the correct offset
     def offset_cacher(*args, **kwargs):
-        start = guid_parser.offset + 1
+        start = ghid_parser.offset + 1
         cache.append(start)
     return offset_cacher
 
-def _generate_guid_rewriter(parent_smartyparser, addresser):
-    def guid_rewriter(guid):
-        size = parent_smartyparser['guid'].length
-        section = slice(len(guid) - size, None)
-        guid[section] = addresser.create()
+def _generate_ghid_rewriter(parent_smartyparser, addresser):
+    def ghid_rewriter(ghid):
+        size = parent_smartyparser['ghid'].length
+        section = slice(len(ghid) - size, None)
+        ghid[section] = addresser.create()
 
 
 # ###############################################
@@ -136,15 +136,15 @@ def _attempt_asym_unpack(data):
     return result
     
     
-def _typecheck_guid(guid):
+def _typecheck_ghid(ghid):
     # Use None as a no-op
-    if guid is not None and not isinstance(guid, Guid):
+    if ghid is not None and not isinstance(ghid, Ghid):
         return False
     else:
         return True
     
     
-def _typecheck_guidlist(iterable):
+def _typecheck_ghidlist(iterable):
     # Messy but effective.
     # Use None as a no-op
     if iterable is None:
@@ -152,7 +152,7 @@ def _typecheck_guidlist(iterable):
     elif not isinstance(iterable, collections.Iterable):
         return False
     for iterant in iterable:
-        if not _typecheck_guid(iterant):
+        if not _typecheck_ghid(iterant):
             return False
     return True
     
@@ -196,7 +196,7 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
                 'version': version,
                 'cipher': None,
                 'body': {},
-                'guid': None,
+                'ghid': None,
                 'signature': None
             }
             
@@ -228,15 +228,15 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         self._control['signature'] = value
         
     @property
-    def guid(self):
-        return self._control['guid']
+    def ghid(self):
+        return self._control['ghid']
         
-    @guid.setter
-    def guid(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Guid must be type Guid or similar.')
+    @ghid.setter
+    def ghid(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Ghid must be type Ghid or similar.')
             
-        self._control['guid'] = guid
+        self._control['ghid'] = ghid
         
     @property
     def version(self):
@@ -263,8 +263,8 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         
     @property
     def address_algo(self):
-        if self.guid is not None:
-            return self.guid.algo
+        if self.ghid is not None:
+            return self.ghid.algo
         elif self._address_algo != None:
             return self._address_algo
         else:
@@ -281,7 +281,7 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         
     def pack(self, address_algo, cipher):
         ''' Performs raw packing using the smartyparser in self.PARSER.
-        Generates a GUID as well.
+        Generates a GHID as well.
         '''
         # Normal
         self.cipher = cipher
@@ -296,8 +296,8 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         sig_padding = bytes(sig_length)
         self.signature = sig_padding
         hash_length = self._addresser.ADDRESS_LENGTH
-        guid_padding = bytes(hash_length)
-        self.guid = Guid(self.address_algo, guid_padding)
+        ghid_padding = bytes(hash_length)
+        self.ghid = Ghid(self.address_algo, ghid_padding)
         
         # Normal
         packed = self.PARSER.pack(self._control)
@@ -322,7 +322,7 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         # Conversion to bytes necessary for PyCryptoDome API
         address = self._addresser.create(bytes(packed[calc_slice]))
         packed[hash_slice] = address
-        self.guid = Guid(self.address_algo, address)
+        self.ghid = Ghid(self.address_algo, address)
         
         # Normal-ish, courtesy of above
         self._packed = packed
@@ -344,8 +344,8 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         '''
         # Accommodate SP
         offset_cache = []
-        offset_cacher = _generate_offset_cacher(offset_cache, cls.PARSER['guid'])
-        cls.PARSER['guid'].register_callback('preunpack', offset_cacher)
+        offset_cacher = _generate_offset_cacher(offset_cache, cls.PARSER['ghid'])
+        cls.PARSER['ghid'].register_callback('preunpack', offset_cacher)
         
         # Normal
         unpacked = cls.PARSER.unpack(data)
@@ -357,7 +357,7 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         address_data = self._packed[:address_offset].tobytes()
         
         # Normal-ish
-        self._addresser.verify(self.guid.address, address_data)
+        self._addresser.verify(self.ghid.address, address_data)
         
         # Don't forget this part.
         return self
@@ -456,7 +456,7 @@ class GEOC(_GolixObjectBase):
     def __init__(self, author=None, payload=None, _control=None, *args, **kwargs):
         ''' Generates GEOC object.
         
-        Author should be a utils.Guid object (or similar).
+        Author should be a utils.Ghid object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
@@ -490,13 +490,13 @@ class GEOC(_GolixObjectBase):
             raise AttributeError('Author not yet defined.') from e
             
     @author.setter
-    def author(self, guid):
+    def author(self, ghid):
         # DON'T implement a deleter, because without a payload, this is
         # meaningless. Use None for temporary payloads.
-        if not _typecheck_guid(guid):
-            raise TypeError('Authors must be type Guid or similar.')
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Authors must be type Ghid or similar.')
             
-        self._control['body']['author'] = guid
+        self._control['body']['author'] = ghid
         
 
 class GOBS(_GolixObjectBase):
@@ -510,7 +510,7 @@ class GOBS(_GolixObjectBase):
     def __init__(self, binder=None, target=None, _control=None, *args, **kwargs):
         ''' Generates GOBS object.
         
-        Binder and target should be a utils.Guid object (or similar).
+        Binder and target should be a utils.Ghid object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
@@ -527,11 +527,11 @@ class GOBS(_GolixObjectBase):
             raise AttributeError('Binder not yet defined.') from e
             
     @binder.setter
-    def binder(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Binders must be type Guid or similar.')
+    def binder(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Binders must be type Ghid or similar.')
             
-        self._control['body']['binder'] = guid
+        self._control['body']['binder'] = ghid
         
     @property
     def target(self):
@@ -541,11 +541,11 @@ class GOBS(_GolixObjectBase):
             raise AttributeError('Target not yet defined.') from e
             
     @target.setter
-    def target(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Targets must be type Guid or similar.')
+    def target(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Targets must be type Ghid or similar.')
             
-        self._control['body']['target'] = guid
+        self._control['body']['target'] = ghid
         
 
 class GOBD(_GolixObjectBase):
@@ -560,11 +560,11 @@ class GOBD(_GolixObjectBase):
                 binder=None, 
                 history=None, 
                 target=None, 
-                guid_dynamic=None, 
+                ghid_dynamic=None, 
                 _control=None, *args, **kwargs):
         ''' Generates GOBS object.
         
-        Binder, targets, and guid_dynamic should be a utils.Guid 
+        Binder, targets, and ghid_dynamic should be a utils.Ghid 
         object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -573,7 +573,7 @@ class GOBD(_GolixObjectBase):
         if not _control:
             self.binder = binder
             self.target = target
-            self.guid_dynamic = guid_dynamic
+            self.ghid_dynamic = ghid_dynamic
             self.history = history
         
     @property
@@ -584,11 +584,11 @@ class GOBD(_GolixObjectBase):
             raise AttributeError('Binder not yet defined.') from e
             
     @binder.setter
-    def binder(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Binders must be type Guid or similar.')
+    def binder(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Binders must be type Ghid or similar.')
             
-        self._control['body']['binder'] = guid
+        self._control['body']['binder'] = ghid
         
     @property
     def target(self):
@@ -599,24 +599,24 @@ class GOBD(_GolixObjectBase):
             
     @target.setter
     def target(self, value):
-        if not _typecheck_guid(value):
-            raise TypeError('Target must be type Guid or similar.')
+        if not _typecheck_ghid(value):
+            raise TypeError('Target must be type Ghid or similar.')
         
         self._control['body']['target'] = value
         
     @property
-    def guid_dynamic(self):
+    def ghid_dynamic(self):
         try:
-            return self._control['guid_dynamic']
+            return self._control['ghid_dynamic']
         except KeyError as e:
             raise AttributeError('Dynamic address not yet defined.') from e
             
-    @guid_dynamic.setter
-    def guid_dynamic(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Guid_dynamic must be type Guid or similar.')
+    @ghid_dynamic.setter
+    def ghid_dynamic(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Ghid_dynamic must be type Ghid or similar.')
             
-        self._control['guid_dynamic'] = guid
+        self._control['ghid_dynamic'] = ghid
         
     @property
     def history(self):
@@ -627,8 +627,8 @@ class GOBD(_GolixObjectBase):
             
     @history.setter
     def history(self, value):
-        if not _typecheck_guidlist(value):
-            raise TypeError('History must be an iterable of Guids or similar.')
+        if not _typecheck_ghidlist(value):
+            raise TypeError('History must be an iterable of Ghids or similar.')
 
         self._control['body']['history'] = value
         
@@ -639,11 +639,11 @@ class GOBD(_GolixObjectBase):
         '''
         # Normal
         # First we need to check some things.
-        if self.history and self.guid_dynamic:
+        if self.history and self.ghid_dynamic:
             # Accommodate SP
             calculate_dynamic = False
         # Normal
-        elif self.history or self.guid_dynamic:
+        elif self.history or self.ghid_dynamic:
             raise ValueError(
                 'History and dynamic address must both be defined, or '
                 'undefined. One cannot exist without the other.')
@@ -665,13 +665,13 @@ class GOBD(_GolixObjectBase):
         sig_padding = bytes(sig_length)
         self.signature = sig_padding
         hash_length = self._addresser.ADDRESS_LENGTH
-        guid_padding = bytes(hash_length)
-        self.guid = Guid(self.address_algo, guid_padding)
+        ghid_padding = bytes(hash_length)
+        self.ghid = Ghid(self.address_algo, ghid_padding)
         
         # Accommodate SP
         if calculate_dynamic:
             self.history = []
-            self.guid_dynamic = Guid(self.address_algo, guid_padding)
+            self.ghid_dynamic = Ghid(self.address_algo, ghid_padding)
         
         # Normal
         packed = self.PARSER.pack(self._control)
@@ -706,13 +706,13 @@ class GOBD(_GolixObjectBase):
                 bytes(packed[calc_slice_dynamic])
             )
             packed[hash_slice_dynamic] = address_dynamic
-            self.guid_dynamic = Guid(self.address_algo, address_dynamic)
+            self.ghid_dynamic = Ghid(self.address_algo, address_dynamic)
         
         # Hash the packed data, until the appropriate point, and then sign
         # Conversion to bytes necessary for PyCryptoDome API
         address = self._addresser.create(bytes(packed[calc_slice_static]))
         packed[hash_slice_static] = address
-        self.guid = Guid(self.address_algo, address)
+        self.ghid = Ghid(self.address_algo, address)
         
         # Normal-ish, courtesy of above
         self._packed = packed
@@ -726,9 +726,9 @@ class GOBD(_GolixObjectBase):
         offset_cache_static = []
         offset_cacher_static = _generate_offset_cacher(
             offset_cache_static, 
-            cls.PARSER['guid']
+            cls.PARSER['ghid']
         )
-        cls.PARSER['guid'].register_callback(
+        cls.PARSER['ghid'].register_callback(
             'preunpack', 
             offset_cacher_static
         )
@@ -736,9 +736,9 @@ class GOBD(_GolixObjectBase):
         offset_cache_dynamic = []
         offset_cacher_dynamic = _generate_offset_cacher(
             offset_cache_dynamic, 
-            cls.PARSER['guid_dynamic']
+            cls.PARSER['ghid_dynamic']
         )
-        cls.PARSER['guid_dynamic'].register_callback(
+        cls.PARSER['ghid_dynamic'].register_callback(
             'preunpack', 
             offset_cacher_dynamic
         )
@@ -758,12 +758,12 @@ class GOBD(_GolixObjectBase):
         # Verify the initial hash if history is undefined
         if not self.history:
             self._addresser.verify(
-                self.guid_dynamic.address, 
+                self.ghid_dynamic.address, 
                 address_data_dynamic
             )
         
         # Normal-ish
-        self._addresser.verify(self.guid.address, address_data_static)
+        self._addresser.verify(self.ghid.address, address_data_static)
         
         # Don't forget this part.
         return self
@@ -780,7 +780,7 @@ class GDXX(_GolixObjectBase):
     def __init__(self, debinder=None, target=None, _control=None, *args, **kwargs):
         ''' Generates GDXX object.
         
-        Binder and target should be a utils.Guid object (or similar).
+        Binder and target should be a utils.Ghid object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
         
@@ -797,11 +797,11 @@ class GDXX(_GolixObjectBase):
             raise AttributeError('Debinder not yet defined.') from e
             
     @debinder.setter
-    def debinder(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Debinder must be type Guid or similar.')
+    def debinder(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Debinder must be type Ghid or similar.')
 
-        self._control['body']['debinder'] = guid
+        self._control['body']['debinder'] = ghid
         
     @property
     def target(self):
@@ -811,11 +811,11 @@ class GDXX(_GolixObjectBase):
             raise AttributeError('Targets not yet defined.') from e
             
     @target.setter
-    def target(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Target must be type Guid or similar.')
+    def target(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Target must be type Ghid or similar.')
 
-        self._control['body']['target'] = guid
+        self._control['body']['target'] = ghid
         
 
 class GARQ(_GolixObjectBase):
@@ -829,7 +829,7 @@ class GARQ(_GolixObjectBase):
     def __init__(self, recipient=None, payload=None, _control=None, *args, **kwargs):
         ''' Generates GARQ object.
         
-        Recipient must be a utils.Guid object (or similar). 
+        Recipient must be a utils.Ghid object (or similar). 
         Payload must be bytes-like.
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -849,11 +849,11 @@ class GARQ(_GolixObjectBase):
             raise AttributeError('Recipient not yet defined.') from e
             
     @recipient.setter
-    def recipient(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Recipient must be type Guid or similar.')
+    def recipient(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Recipient must be type Ghid or similar.')
 
-        self._control['body']['recipient'] = guid
+        self._control['body']['recipient'] = ghid
         
     @property
     def payload(self):
@@ -957,11 +957,11 @@ class _AsymBase():
         return self._control['author']
         
     @author.setter
-    def author(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Author must be type Guid or similar.')
+    def author(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Author must be type Ghid or similar.')
 
-        self._control['author'] = guid
+        self._control['author'] = ghid
         
     @property
     def magic(self):
@@ -1004,11 +1004,11 @@ class GARQHandshake(_AsymBase):
             raise AttributeError('Target not yet defined.') from e
             
     @target.setter
-    def target(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Target must be type Guid or similar.')
+    def target(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Target must be type Ghid or similar.')
 
-        self._control['payload']['target'] = guid
+        self._control['payload']['target'] = ghid
             
     @property
     def secret(self):
@@ -1056,11 +1056,11 @@ class GARQAck(_AsymBase):
             raise AttributeError('Target not yet defined.') from e
             
     @target.setter
-    def target(self, guid):
-        if not _typecheck_guid(guid):
-            raise TypeError('Target must be type Guid or similar.')
+    def target(self, ghid):
+        if not _typecheck_ghid(ghid):
+            raise TypeError('Target must be type Ghid or similar.')
 
-        self._control['payload']['target'] = guid
+        self._control['payload']['target'] = ghid
             
     @property
     def status(self):

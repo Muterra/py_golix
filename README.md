@@ -33,7 +33,7 @@ These are reasons why the pycryptodome and cryptography.io projects are on more 
 
 **However,** these problems *currently* tip the scales in support of PyCryptoDome:
 
-+ **cryptography.io signing API doesn't appear to allow pre-generation of hashes to sign (critical).** This is "needed" for the GUID; even though we could appropriately slice the data and then pass it to be signed, we would have to repeat the hash generation process 
++ **cryptography.io signing API doesn't appear to allow pre-generation of hashes to sign (critical).** This is "needed" for the GHID; even though we could appropriately slice the data and then pass it to be signed, we would have to repeat the hash generation process 
 + **cryptography.io doesn't support OAEP+MGF1+SHA512 (critical).** Yes, this is an extremely unusual construction, but the Golix standard has a STRONG desire to minimize the number of crypto primitives (including hash functions) necessary to support the standard. Maybe in the future that will change.
 + cryptography.io doesn't support SIV mode (note that SIV may be removed from Golix standard, though)
 + cryptography.io doesn't support scrypt
@@ -68,5 +68,5 @@ And these metrics are unknown:
 
 ## Done
 
-+ ~~Make handling of GUID objects symmetric. AKA, convert loaded SmartyParseObjects into utils.Guid objects.~~ That was unexpectedly straightforward.
++ ~~Make handling of GHID objects symmetric. AKA, convert loaded SmartyParseObjects into utils.Ghid objects.~~ That was unexpectedly straightforward.
 + ~~Move trashtest into _spec unit test file before substantial changes.~~ Might have broken since then though.

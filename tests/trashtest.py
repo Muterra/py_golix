@@ -37,7 +37,7 @@ import sys
 import collections
 
 # These are normal imports
-from golix import Guid
+from golix import Ghid
 from golix import ThirdParty
 from golix import SecondParty
 from golix import FirstParty
@@ -49,7 +49,7 @@ from golix import FirstParty
 def run():
     # Check this out!
     known_second_parties = {}
-    # known_second_parties[fake_second_id.guid] = fake_second_id
+    # known_second_parties[fake_second_id.ghid] = fake_second_id
     
     server1 = ThirdParty()
     

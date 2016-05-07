@@ -40,7 +40,7 @@ from smartyparse import ListyParser
 from smartyparse import parsers
 from smartyparse import references
 
-from .utils import Guid
+from .utils import Ghid
 
 from .utils import _gen_dispatch
 from .utils import _gen_body_update
@@ -50,10 +50,10 @@ from .utils import _dummy_asym
 from .utils import _dummy_mac
 from .utils import _dummy_signature
 from .utils import _dummy_address
-from .utils import _dummy_guid
+from .utils import _dummy_ghid
 from .utils import _dummy_pubkey
-from .utils import generate_guid_parser
-from .utils import generate_guidlist_parser
+from .utils import generate_ghid_parser
+from .utils import generate_ghidlist_parser
 
 # ----------------------------------------------------------------------
 # Crypto parsers definition block
@@ -89,9 +89,9 @@ _pubkey_parsers_exchange[1] = ParseHelper(parsers.Blob(length=32))
 _pubkey_parsers_exchange[2] = ParseHelper(parsers.Blob(length=32))
 
 # ----------------------------------------------------------------------
-# Use this whenever a GUID list is required
+# Use this whenever a GHID list is required
 
-_guidlist = generate_guidlist_parser()
+_ghidlist = generate_ghidlist_parser()
 
 # ----------------------------------------------------------------------
 # GIDC format blocks
@@ -101,7 +101,7 @@ _gidc['magic'] = ParseHelper(parsers.Literal(b'GIDC'))
 _gidc['version'] = ParseHelper(parsers.Int32(signed=False))
 _gidc['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _gidc['body'] = None
-_gidc['guid'] = generate_guid_parser()
+_gidc['ghid'] = generate_ghid_parser()
 _gidc['signature'] = ParseHelper(parsers.Null())
 
 _gidc_lookup = {}
@@ -132,12 +132,12 @@ _geoc['magic'] = ParseHelper(parsers.Literal(b'GEOC'))
 _geoc['version'] = ParseHelper(parsers.Int32(signed=False))
 _geoc['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _geoc['body'] = None
-_geoc['guid'] = generate_guid_parser()
+_geoc['ghid'] = generate_ghid_parser()
 _geoc['signature'] = None
 
 _geoc_lookup = {}
 _geoc_lookup[14] = SmartyParser()
-_geoc_lookup[14]['author'] = generate_guid_parser()
+_geoc_lookup[14]['author'] = generate_ghid_parser()
 _geoc_lookup[14]['len_payload'] = ParseHelper(parsers.Int64(signed=False))
 _geoc_lookup[14]['payload'] = ParseHelper(parsers.Blob())
 _geoc_lookup[14].link_length('payload', 'len_payload')
@@ -158,13 +158,13 @@ _gobs['magic'] = ParseHelper(parsers.Literal(b'GOBS'))
 _gobs['version'] = ParseHelper(parsers.Int32(signed=False))
 _gobs['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _gobs['body'] = None
-_gobs['guid'] = generate_guid_parser()
+_gobs['ghid'] = generate_ghid_parser()
 _gobs['signature'] = None
 
 _gobs_lookup = {}
 _gobs_lookup[6] = SmartyParser()
-_gobs_lookup[6]['binder'] = generate_guid_parser()
-_gobs_lookup[6]['target'] = generate_guid_parser()
+_gobs_lookup[6]['binder'] = generate_ghid_parser()
+_gobs_lookup[6]['target'] = generate_ghid_parser()
     
 _gobs['version'].register_callback('prepack', _gen_dispatch(_gobs, _gobs_lookup, 'body'))
 _gobs['version'].register_callback('postunpack', _gen_dispatch(_gobs, _gobs_lookup, 'body'))
@@ -182,16 +182,16 @@ _gobd['magic'] = ParseHelper(parsers.Literal(b'GOBD'))
 _gobd['version'] = ParseHelper(parsers.Int32(signed=False))
 _gobd['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _gobd['body'] = None
-_gobd['guid_dynamic'] = generate_guid_parser()
-_gobd['guid'] = generate_guid_parser()
+_gobd['ghid_dynamic'] = generate_ghid_parser()
+_gobd['ghid'] = generate_ghid_parser()
 _gobd['signature'] = None
 
 _gobd_lookup = {}
 _gobd_lookup[15] = SmartyParser()
-_gobd_lookup[15]['binder'] = generate_guid_parser()
+_gobd_lookup[15]['binder'] = generate_ghid_parser()
 _gobd_lookup[15]['history_length'] = ParseHelper(parsers.Int16(signed=False))
-_gobd_lookup[15]['history'] = _guidlist
-_gobd_lookup[15]['target'] = generate_guid_parser()
+_gobd_lookup[15]['history'] = _ghidlist
+_gobd_lookup[15]['target'] = generate_ghid_parser()
 _gobd_lookup[15].link_length('history', 'history_length')
     
 _gobd['version'].register_callback('prepack', _gen_dispatch(_gobd, _gobd_lookup, 'body'))
@@ -210,13 +210,13 @@ _gdxx['magic'] = ParseHelper(parsers.Literal(b'GDXX'))
 _gdxx['version'] = ParseHelper(parsers.Int32(signed=False))
 _gdxx['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _gdxx['body'] = None
-_gdxx['guid'] = generate_guid_parser()
+_gdxx['ghid'] = generate_ghid_parser()
 _gdxx['signature'] = None
 
 _gdxx_lookup = {}
 _gdxx_lookup[9] = SmartyParser()
-_gdxx_lookup[9]['debinder'] = generate_guid_parser()
-_gdxx_lookup[9]['target'] = generate_guid_parser()
+_gdxx_lookup[9]['debinder'] = generate_ghid_parser()
+_gdxx_lookup[9]['target'] = generate_ghid_parser()
     
 _gdxx['version'].register_callback('prepack', _gen_dispatch(_gdxx, _gdxx_lookup, 'body'))
 _gdxx['version'].register_callback('postunpack', _gen_dispatch(_gdxx, _gdxx_lookup, 'body'))
@@ -234,12 +234,12 @@ _garq['magic'] = ParseHelper(parsers.Literal(b'GARQ'))
 _garq['version'] = ParseHelper(parsers.Int32(signed=False))
 _garq['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _garq['body'] = None
-_garq['guid'] = generate_guid_parser()
+_garq['ghid'] = generate_ghid_parser()
 _garq['signature'] = None
 
 _garq_lookup = {}
 _garq_lookup[12] = SmartyParser()
-_garq_lookup[12]['recipient'] = generate_guid_parser()
+_garq_lookup[12]['recipient'] = generate_ghid_parser()
 _garq_lookup[12]['payload'] = None
 
 _garq_cipher_update = _callback_multi(
@@ -258,42 +258,42 @@ _garq.versions = set(_garq_lookup)
 # Asymmetric payload format blocks
 
 _asym_hand_payload = SmartyParser()
-_asym_hand_payload['target'] = generate_guid_parser()
+_asym_hand_payload['target'] = generate_ghid_parser()
 _asym_hand_payload['secret_length'] = ParseHelper(parsers.Int8(signed=False))
 _asym_hand_payload['secret'] = ParseHelper(parsers.Blob())
 _asym_hand_payload.link_length('secret', 'secret_length')
 
 _asym_ak_payload = SmartyParser()
-_asym_ak_payload['target'] = generate_guid_parser()
+_asym_ak_payload['target'] = generate_ghid_parser()
 _asym_ak_payload['status'] = ParseHelper(parsers.Int32(signed=False))
 
 _asym_nk_payload = SmartyParser()
-_asym_nk_payload['target'] = generate_guid_parser()
+_asym_nk_payload['target'] = generate_ghid_parser()
 _asym_nk_payload['status'] = ParseHelper(parsers.Int32(signed=False))
 
 _asym_hand = SmartyParser()
-_asym_hand['author'] = generate_guid_parser()
+_asym_hand['author'] = generate_ghid_parser()
 _asym_hand['magic'] = ParseHelper(parsers.Literal(b'HS'))
 _asym_hand['payload_length'] = ParseHelper(parsers.Int16(signed=False))
 _asym_hand['payload'] = _asym_hand_payload
 _asym_hand.link_length('payload', 'payload_length')
 
 _asym_ak = SmartyParser()
-_asym_ak['author'] = generate_guid_parser()
+_asym_ak['author'] = generate_ghid_parser()
 _asym_ak['magic'] = ParseHelper(parsers.Literal(b'AK'))
 _asym_ak['payload_length'] = ParseHelper(parsers.Int16(signed=False))
 _asym_ak['payload'] = _asym_ak_payload
 _asym_ak.link_length('payload', 'payload_length')
 
 _asym_nk = SmartyParser()
-_asym_nk['author'] = generate_guid_parser()
+_asym_nk['author'] = generate_ghid_parser()
 _asym_nk['magic'] = ParseHelper(parsers.Literal(b'NK'))
 _asym_nk['payload_length'] = ParseHelper(parsers.Int16(signed=False))
 _asym_nk['payload'] = _asym_nk_payload
 _asym_nk.link_length('payload', 'payload_length')
 
 _asym_else = SmartyParser()
-_asym_else['author'] = generate_guid_parser()
+_asym_else['author'] = generate_ghid_parser()
 _asym_else['magic'] = ParseHelper(parsers.Literal(b'\x00\x00'))
 _asym_else['payload_length'] = ParseHelper(parsers.Int16(signed=False))
 _asym_else['payload'] = ParseHelper(parsers.Blob())

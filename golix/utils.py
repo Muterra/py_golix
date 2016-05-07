@@ -49,7 +49,7 @@ from smartyparse import references
 class _AddressAlgoBase(metaclass=abc.ABCMeta):
     @classmethod
     def create(cls, data):
-        ''' Creates an address (note: not the whole guid) from data.
+        ''' Creates an address (note: not the whole ghid) from data.
         '''
         h = cls._HASH_ALGO.new(data)
         digest = bytes(h.digest())
@@ -61,7 +61,7 @@ class _AddressAlgoBase(metaclass=abc.ABCMeta):
         
     @classmethod
     def verify(cls, address, data):
-        ''' Verifies an address (note: not the whole guid) from data.
+        ''' Verifies an address (note: not the whole ghid) from data.
         '''
         test = cls.create(data)
         if test != address:
@@ -126,11 +126,11 @@ _hash_algo_lookup = {
 }
 
 # ----------------------------------------------------------------------
-# Guids and parsers therefore.
+# Ghids and parsers therefore.
 
 
-class Guid():
-    ''' Extremely lightweight class for GUIDs. Implements __hash__ to 
+class Ghid():
+    ''' Extremely lightweight class for GHIDs. Implements __hash__ to 
     allow it to be used as a dictionary key.
     '''
     __slots__ = ['_algo', '_address']
@@ -146,7 +146,6 @@ class Guid():
         setattr(self, item, value)
         
     def __hash__(self):
-        address = self.address or b''
         condensed = bytes(self)
         return hash(condensed)
         
@@ -155,7 +154,7 @@ class Guid():
             return (self.algo == other.algo and self.address == other.address)
         except (AttributeError, TypeError) as e:
             raise TypeError(
-                'Cannot compare Guid objects to non-Guid-like objects.'
+                'Cannot compare Ghid objects to non-Ghid-like objects.'
             ) from e
             
     def __repr__(self):
@@ -199,7 +198,7 @@ class Guid():
         
     @classmethod
     def from_bytes(cls, data, autoconsume=False):
-        ''' Trashy method for building a Guid from bytes. Should 
+        ''' Trashy method for building a Ghid from bytes. Should 
         probably rework to do some type checking or summat, or use the
         good ole smartyparser. For now, quick and dirty like.
         '''
@@ -208,46 +207,46 @@ class Guid():
         return cls(algo=algo, address=address)
         
         
-_dummy_guid = Guid(0, _dummy_address)
+_dummy_ghid = Ghid(0, _dummy_address)
 
 
-def _guid_transform(unpacked_spo):
-    ''' Transforms an unpacked SmartyParseObject into a .utils.Guid.
+def _ghid_transform(unpacked_spo):
+    ''' Transforms an unpacked SmartyParseObject into a .utils.Ghid.
     If using algo zero, also eliminates the address and replaces with
     None.
     '''
-    guid = Guid(algo=unpacked_spo['algo'], address=unpacked_spo['address'])
+    ghid = Ghid(algo=unpacked_spo['algo'], address=unpacked_spo['address'])
     
-    if guid.algo == 0:
-        guid.address = None
+    if ghid.algo == 0:
+        ghid.address = None
         
-    return guid
+    return ghid
 
 
-def generate_guid_parser():
-    guid_parser = SmartyParser()
-    guid_parser['algo'] = ParseHelper(parsers.Int8(signed=False))
-    guid_parser['address'] = None
+def generate_ghid_parser():
+    ghid_parser = SmartyParser()
+    ghid_parser['algo'] = ParseHelper(parsers.Int8(signed=False))
+    ghid_parser['address'] = None
 
-    @references(guid_parser)
-    def _guid_format(self, algo):
+    @references(ghid_parser)
+    def _ghid_format(self, algo):
         try:
             self['address'] = _hash_algo_lookup[algo]
         except KeyError as e:
             print(algo)
             raise ValueError('Improper hash algorithm declaration.') from e
             
-    guid_parser['algo'].register_callback('prepack', _guid_format)
-    guid_parser['algo'].register_callback('postunpack', _guid_format)
+    ghid_parser['algo'].register_callback('prepack', _ghid_format)
+    ghid_parser['algo'].register_callback('postunpack', _ghid_format)
     
-    # Don't forget to transform the object back to a utils.Guid
-    guid_parser.register_callback('postunpack', _guid_transform, modify=True)
+    # Don't forget to transform the object back to a utils.Ghid
+    ghid_parser.register_callback('postunpack', _ghid_transform, modify=True)
     
-    return guid_parser
+    return ghid_parser
     
     
-def generate_guidlist_parser():    
-    return ListyParser(parsers=[generate_guid_parser()])
+def generate_ghidlist_parser():    
+    return ListyParser(parsers=[generate_ghid_parser()])
 
 # ----------------------------------------------------------------------
 # Generalized object dispatchers

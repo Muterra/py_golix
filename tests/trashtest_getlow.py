@@ -37,7 +37,7 @@ import sys
 import collections
 
 # These are normal inclusions
-from golix import Guid
+from golix import Ghid
 
 # These are abnormal (don't use in production) inclusions.
 from golix._getlow import GEOC
@@ -57,7 +57,7 @@ from golix.utils import _dummy_mac
 from golix.utils import _dummy_asym
 from golix.utils import _dummy_address
 from golix.utils import _dummy_pubkey
-from golix.utils import _dummy_guid
+from golix.utils import _dummy_ghid
 
 # These are soon-to-be-removed abnormal imports
 from golix._spec import _gidc, _geoc, _gobs, _gobd, _gdxx, _garq
@@ -90,8 +90,8 @@ def run():
     
     # Dummy payload and authors for GEOC objects
     _dummy_payload = b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
-    _dummy_author = gidc_1.guid
-    _rls_author = gidc_2.guid
+    _dummy_author = gidc_1.ghid
+    _rls_author = gidc_2.ghid
     
     # GEOC dummy address test.
     geoc_1 = GEOC(author=_dummy_author, payload=_dummy_payload)
@@ -110,7 +110,7 @@ def run():
     # GOBS dummy address test.
     gobs_1 = GOBS(
         binder=_dummy_author, 
-        target=_dummy_guid
+        target=_dummy_ghid
     )
     gobs_1.pack(cipher=0, address_algo=0)
     gobs_1.pack_signature(_dummy_signature)
@@ -120,7 +120,7 @@ def run():
     # GOBS actual address test.
     gobs_2 = GOBS(
         binder=_rls_author, 
-        target=_dummy_guid
+        target=_dummy_ghid
     )
     gobs_2.pack(cipher=0, address_algo=1)
     gobs_2.pack_signature(_dummy_signature)
@@ -130,7 +130,7 @@ def run():
     # GOBD dummy address test.
     gobd_1 = GOBD(
         binder=_dummy_author, 
-        target=_dummy_guid
+        target=_dummy_ghid
     )
     gobd_1.pack(cipher=0, address_algo=0)
     gobd_1.pack_signature(_dummy_signature)
@@ -140,7 +140,7 @@ def run():
     # GOBD actual address test.
     gobd_2 = GOBD(
         binder=_rls_author, 
-        target=_dummy_guid
+        target=_dummy_ghid
     )
     gobd_2.pack(cipher=0, address_algo=1)
     gobd_2.pack_signature(_dummy_signature)
@@ -150,9 +150,9 @@ def run():
     # GOBD actual address test, with history
     gobd_3 = GOBD(
         binder=_rls_author, 
-        target=_dummy_guid,
-        guid_dynamic=gobd_2.guid_dynamic,
-        history=[gobd_2.guid]
+        target=_dummy_ghid,
+        ghid_dynamic=gobd_2.ghid_dynamic,
+        history=[gobd_2.ghid]
     )
     gobd_3.pack(cipher=0, address_algo=1)
     gobd_3.pack_signature(_dummy_signature)
@@ -162,7 +162,7 @@ def run():
     # GDXX dummy address test.
     gdxx_1 = GDXX(
         debinder=_dummy_author, 
-        target=_dummy_guid
+        target=_dummy_ghid
     )
     gdxx_1.pack(cipher=0, address_algo=0)
     gdxx_1.pack_signature(_dummy_signature)
@@ -172,7 +172,7 @@ def run():
     # GDXX actual address test.
     gdxx_2 = GDXX(
         debinder=_rls_author, 
-        target=_dummy_guid
+        target=_dummy_ghid
     )
     gdxx_2.pack(cipher=0, address_algo=1)
     gdxx_2.pack_signature(_dummy_signature)
@@ -202,7 +202,7 @@ def run():
     # Asym request testing
     asrq_1 = GARQHandshake(
         author=_dummy_author,
-        target=_dummy_guid, 
+        target=_dummy_ghid, 
         secret=Secret(
             cipher = 1,
             key = b'[--Check out my sweet key, yo!-]',
@@ -215,7 +215,7 @@ def run():
     # Asym ack testing
     asak_1 = GARQAck(
         author=_dummy_author,
-        target=_dummy_guid, 
+        target=_dummy_ghid, 
         status=5
     )
     asak_1.pack()
@@ -225,7 +225,7 @@ def run():
     # Asym ack testing
     asnk_1 = GARQNak(
         author=_dummy_author,
-        target=_dummy_guid, 
+        target=_dummy_ghid, 
         status=7
     )
     asnk_1.pack()

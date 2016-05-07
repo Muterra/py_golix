@@ -37,7 +37,7 @@ import sys
 import collections
 
 # These are normal inclusions
-from golix import Guid
+from golix import Ghid
 
 # These are abnormal (don't use in production) inclusions
 from golix._spec import _gidc, _geoc, _gobs, _gobd, _gdxx, _garq
@@ -52,7 +52,7 @@ from golix.utils import _dummy_pubkey
 # Testing
 # ###############################################
 
-_dummy_guid = Guid(0, _dummy_address)
+_dummy_ghid = Ghid(0, _dummy_address)
     
 def run():
     # GIDC test parsers
@@ -65,7 +65,7 @@ def run():
             'encryption_key': _dummy_pubkey,
             'exchange_key': _dummy_pubkey,
         },
-        'guid': _dummy_guid,
+        'ghid': _dummy_ghid,
         'signature': None
     }
     
@@ -78,10 +78,10 @@ def run():
         'version': 14,
         'cipher': 0,
         'body': {
-            'author': _dummy_guid,
+            'author': _dummy_ghid,
             'payload': b'Hello world',
         },
-        'guid': _dummy_guid,
+        'ghid': _dummy_ghid,
         'signature': _dummy_signature
     }
     
@@ -94,10 +94,10 @@ def run():
         'version': 6,
         'cipher': 0,
         'body': {
-            'binder': _dummy_guid,
-            'target': _dummy_guid,
+            'binder': _dummy_ghid,
+            'target': _dummy_ghid,
         },
-        'guid': _dummy_guid,
+        'ghid': _dummy_ghid,
         'signature': _dummy_signature
     }
     
@@ -110,12 +110,12 @@ def run():
         'version': 15,
         'cipher': 0,
         'body': {
-            'binder': _dummy_guid,
+            'binder': _dummy_ghid,
             'history': [],
-            'target': _dummy_guid,
+            'target': _dummy_ghid,
         },
-        'guid_dynamic': _dummy_guid,
-        'guid': _dummy_guid,
+        'ghid_dynamic': _dummy_ghid,
+        'ghid': _dummy_ghid,
         'signature': _dummy_signature
     }
     
@@ -128,10 +128,10 @@ def run():
         'version': 9,
         'cipher': 0,
         'body': {
-            'debinder': _dummy_guid,
-            'target': _dummy_guid,
+            'debinder': _dummy_ghid,
+            'target': _dummy_ghid,
         },
-        'guid': _dummy_guid,
+        'ghid': _dummy_ghid,
         'signature': _dummy_signature
     }
     
@@ -144,10 +144,10 @@ def run():
         'version': 12,
         'cipher': 0,
         'body': {
-            'recipient': _dummy_guid,
+            'recipient': _dummy_ghid,
             'payload': _dummy_asym,
         },
-        'guid': _dummy_guid,
+        'ghid': _dummy_ghid,
         'signature': _dummy_mac
     }
     
@@ -156,10 +156,10 @@ def run():
     
     # Asymmetric payload blob tests.
     asym_hand_1 = {
-        'author': _dummy_guid,
+        'author': _dummy_ghid,
         'magic': b'HS',
         'payload': {
-            'target': _dummy_guid,
+            'target': _dummy_ghid,
             'secret': bytes(32)
         }
     }
@@ -167,10 +167,10 @@ def run():
     asym_hand_1r = _asym_hand.unpack(asym_hand_1p)
     
     asym_ak_2 = {
-        'author': _dummy_guid,
+        'author': _dummy_ghid,
         'magic': b'AK',
         'payload': {
-            'target': _dummy_guid,
+            'target': _dummy_ghid,
             'status': 0
         }
     }
@@ -178,10 +178,10 @@ def run():
     asym_ak_2r = _asym_ak.unpack(asym_ak_2p)
     
     asym_nk_3 = {
-        'author': _dummy_guid,
+        'author': _dummy_ghid,
         'magic': b'NK',
         'payload': {
-            'target': _dummy_guid,
+            'target': _dummy_ghid,
             'status': 0
         }
     }
@@ -189,7 +189,7 @@ def run():
     asym_nk_3r = _asym_nk.unpack(asym_nk_3p)
     
     asym_else_4 = {
-        'author': _dummy_guid,
+        'author': _dummy_ghid,
         'magic': b'\x00\x00',
         'payload': b'Hello world'
     }

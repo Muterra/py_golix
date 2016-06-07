@@ -19,9 +19,14 @@ without worrying about the bits and bytes.'''
 # If we're installing, don't bother building the long_description
 # Ewwww, this is dirty.
 if sys.argv[1] == 'sdist':
+    with open('README.md', 'r') as f:
+        s_readme = f.read()
+        
     # Get the long description from the README file
     import pypandoc
-    long_description = pypandoc.convert('README.md', 'rst')
+    long_description = pypandoc.convert(s_readme, 'rst', format='md')
+    with open('README.rst', 'w') as f:
+        f.write(long_description)
 
 setup(
     name='golix',
@@ -29,7 +34,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1a1',
+    version='0.1.0',
 
     description='A python library for Golix object manipulation.',
     long_description=long_description,
@@ -83,7 +88,11 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=[],
+    install_requires=[
+        'donna25519>=0.1.1',
+        'pycryptodome>=3.4',
+        'smartyparse>=0.1.0',
+    ],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

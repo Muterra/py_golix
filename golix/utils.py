@@ -129,11 +129,11 @@ _hash_algo_lookup = {
 # Ghids and parsers therefore.
 
 
-class Ghid():
+class Ghid:
     ''' Extremely lightweight class for GHIDs. Implements __hash__ to 
     allow it to be used as a dictionary key.
     '''
-    __slots__ = ['_algo', '_address']
+    __slots__ = ['_algo', '_address', '__weakref__']
     
     def __init__(self, algo, address):
         self.algo = algo
@@ -164,6 +164,10 @@ class Ghid():
             '(algo=' + repr(self.algo) + ', '
             'address=' + repr(self.address) + ')'
         )
+        
+    def __str__(self):
+        c = type(self).__name__
+        return c + repr(bytes(self))
         
     @property
     def algo(self):
@@ -343,7 +347,7 @@ _secret_latest = max(list(_secret_parsers))
 _secret_versions = set(_secret_parsers)
     
     
-class Secret():
+class Secret:
     ''' All secrets have a key. Some have a nonce or IV (seed). All must 
     be able to be condensed into __bytes__. All must also be retrievable 
     from a bytes object.

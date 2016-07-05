@@ -167,7 +167,7 @@ class Ghid:
         
     def __str__(self):
         c = type(self).__name__
-        return c + repr(bytes(self))
+        return c + '(' + repr(bytes(self)) + ')'
         
     @property
     def algo(self):

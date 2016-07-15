@@ -247,31 +247,28 @@ class _ObjectHandlerBase(metaclass=abc.ABCMeta):
         '''
         pass
         
-    @classmethod
-    def unpack_any(cls, packed):
+    def unpack_any(self, packed):
         ''' Try to unpack using any available parser.
         Raises TypeError if no parser is found.
         '''
-        found = False
-        for handler in (
-            cls.unpack_identity,
-            cls.unpack_container,
-            cls.unpack_bind_static,
-            cls.unpack_bind_dynamic,
-            cls.unpack_debind,
-            cls.unpack_request
-        ):
+        for parser in (self.unpack_identity, 
+                        self.unpack_container,
+                        self.unpack_bind_static,
+                        self.unpack_bind_dynamic,
+                        self.unpack_debind,
+                        self.unpack_request):
             try:
-                unpacked = handler(packed)
-            except:
+                obj = parser(packed)
+            # Hm, don't really like this.
+            except (ParseError, TypeError):
                 pass
             else:
-                found = True
-        if not found:
-            raise TypeError(
-                'Packed does not appear to be a packed Golix object.'
+                break
+        else:
+            raise ParseError(
+                'Packed data does not appear to be a Golix object.'
             )
-        return unpacked
+        return obj
     
     
 class _SecondPartyBase(metaclass=abc.ABCMeta):

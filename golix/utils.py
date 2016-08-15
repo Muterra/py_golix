@@ -34,6 +34,8 @@ golix: A python library for Golix protocol object manipulation.
 
 '''
 import abc
+import base64
+
 from collections import namedtuple
 from Crypto.Hash import SHA512
 
@@ -137,7 +139,7 @@ class Ghid:
     
     def __init__(self, algo, address):
         self.algo = algo
-        self.address = address
+        self.address = bytes(address)
         
     def __getitem__(self, item):
         return getattr(self, item)
@@ -164,10 +166,6 @@ class Ghid:
             '(algo=' + repr(self.algo) + ', '
             'address=' + repr(self.address) + ')'
         )
-        
-    def __str__(self):
-        c = type(self).__name__
-        return c + '(' + repr(bytes(self)) + ')'
         
     @property
     def algo(self):
@@ -209,6 +207,23 @@ class Ghid:
         algo = int.from_bytes(data[0:1], byteorder='big')
         address = data[1:]
         return cls(algo=algo, address=address)
+        
+    def __str__(self):
+        c = type(self).__name__
+        b64 = base64.urlsafe_b64encode(bytes(self)).decode()
+        return c + '(' + b64 + ')'
+        
+    def as_str(self):
+        ''' Encodes the ghid as a urlsafe-base64 string.
+        '''
+        return base64.urlsafe_b64encode(bytes(self)).decode()
+        
+    @classmethod
+    def from_str(cls, b64):
+        ''' Returns a ghid built from the urlsafe-base64 string b64.
+        '''
+        raw = base64.urlsafe_b64decode(b64)
+        return cls.from_bytes(raw)
         
         
 _dummy_ghid = Ghid(0, _dummy_address)

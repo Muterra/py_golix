@@ -347,7 +347,10 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
         # Load an existing identity
         if keys is not None and ghid is not None:
-            pass
+            self._second_party = self._generate_second_party(
+                keys, 
+                self.address_algo
+            )
             
         # Catch any improper declaration
         elif keys is not None or ghid is not None:
@@ -359,7 +362,10 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         # Generate a new identity
         else:
             keys = self._generate_keys()
-            self._second_party = self._generate_second_party(keys, self.address_algo)
+            self._second_party = self._generate_second_party(
+                keys, 
+                self.address_algo
+            )
             ghid = self._second_party.ghid
             
         # Now dispatch super() with the adjusted keys, ghid

@@ -90,7 +90,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'donna25519>=0.1.1',
-        'pycryptodome>=3.4',
+        'cryptoraphy>=1.4',
         'smartyparse>=0.1.0',
     ],
 

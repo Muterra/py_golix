@@ -89,18 +89,17 @@ import base64
 import os
 from warnings import warn
 
-# import Crypto
-# from Crypto.Random import random
-from Crypto.Hash import SHA512
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP as OAEP
-from Crypto.Signature import pss as PSS
-from Crypto.Signature.pss import MGF1
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
-from Crypto.Util import Counter
-from Crypto.Protocol.KDF import HKDF
-from Crypto.Hash import HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hmac
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import ciphers
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.kdf import hkdf
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
+CRYPTO_BACKEND = default_backend()
+
 from donna25519 import PrivateKey as ECDHPrivate
 from donna25519 import PublicKey as ECDHPublic
 
@@ -140,33 +139,24 @@ DEFAULT_CIPHER = 1
 
 
 # Some utilities
-class _FrozenHash():
-    ''' Somewhat-janky utility PyCryptoDome-specific base class for 
-    creating fake hash objects from already-generated hash digests. 
-    Looks like a hash, acts like a hash (where appropriate), but doesn't
-    carry a state, and all mutability functions are disabled.
-    
-    On a scale from 1-to-complete-hack, this is probably 2-3 Baja.
-    '''
-        
-    def __init__(self, data):
-        if len(data) != self.digest_size:
-            raise ValueError('Passed frozen data does not match digest size of hash.')
-            
-        self._data = data
-        
-    def update(self, data):
-        raise TypeError('Frozen hashes cannot be updated.')
+class _NoopSHA512(hashes.SHA512):
+    def __init__(self, noopdata, *args, **kwargs):
+        self.__data = noopdata
+        super().__init__(*args, **kwargs)
+        self.algorithm = self
         
     def copy(self):
-        raise TypeError('Frozen hashes cannot be copied.')
+        ''' Total NOOP, because self cannot change.
+        '''
+        return self
         
-    def digest(self):
-        return self._data
-    
-
-class _FrozenSHA512(_FrozenHash, SHA512.SHA512Hash):
-    pass
+    def update(self, data):
+        # Noop noop noop
+        pass
+        
+    def finalize(self):
+        # Yay we get to do something!
+        return self.__data
     
     
 class _IdentityBase(metaclass=abc.ABCMeta):
@@ -505,56 +495,60 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
         return garq
     
-    def receive_container(self, author, secret, container):
+    @classmethod
+    def receive_container(cls, author, secret, container):
         if not isinstance(container, GEOC):
             raise TypeError(
                 'Container must be an unpacked GEOC, for example, as returned '
                 'from unpack_container.'
             )
-        self._typecheck_2ndparty(author)
+        cls._typecheck_2ndparty(author)
         
         signature = container.signature
-        self._verify(author, signature, container.ghid.address)
-        plaintext = self._decrypt(secret, container.payload)
+        cls._verify(author, signature, container.ghid.address)
+        plaintext = cls._decrypt(secret, container.payload)
         # This will need to be converted into a namedtuple or something
         return plaintext
     
-    def receive_bind_static(self, binder, binding):
+    @classmethod
+    def receive_bind_static(cls, binder, binding):
         if not isinstance(binding, GOBS):
             raise TypeError(
                 'Binding must be an unpacked GOBS, for example, as returned '
                 'from unpack_bind_static.'
             )
-        self._typecheck_2ndparty(binder)
+        cls._typecheck_2ndparty(binder)
         
         signature = binding.signature
-        self._verify(binder, signature, binding.ghid.address)
+        cls._verify(binder, signature, binding.ghid.address)
         # This will need to be converted into a namedtuple or something
         return binding.target
     
-    def receive_bind_dynamic(self, binder, binding):
+    @classmethod
+    def receive_bind_dynamic(cls, binder, binding):
         if not isinstance(binding, GOBD):
             raise TypeError(
                 'Binding must be an unpacked GOBD, for example, as returned '
                 'from unpack_bind_dynamic.'
             )
-        self._typecheck_2ndparty(binder)
+        cls._typecheck_2ndparty(binder)
         
         signature = binding.signature
-        self._verify(binder, signature, binding.ghid.address)
+        cls._verify(binder, signature, binding.ghid.address)
         # This will need to be converted into a namedtuple or something
         return binding.target
     
-    def receive_debind(self, debinder, debinding):
+    @classmethod
+    def receive_debind(cls, debinder, debinding):
         if not isinstance(debinding, GDXX):
             raise TypeError(
                 'Debinding must be an unpacked GDXX, for example, as returned '
                 'from unpack_debind.'
             )
-        self._typecheck_2ndparty(debinder)
+        cls._typecheck_2ndparty(debinder)
         
         signature = debinding.signature
-        self._verify(debinder, signature, debinding.ghid.address)
+        cls._verify(debinder, signature, debinding.ghid.address)
         # This will need to be converted into a namedtuple or something
         return debinding.target
         
@@ -998,11 +992,11 @@ class SecondParty1(_SecondPartyBase, _IdentityBase):
     def _pack_keys(cls, keys):
         packkeys = {
             'signature': int.to_bytes(
-                                    keys['signature'].n, 
+                                    keys['signature'].public_numbers().n, 
                                     length=512, 
                                     byteorder='big'),
             'encryption': int.to_bytes(
-                                    keys['encryption'].n, 
+                                    keys['encryption'].public_numbers().n, 
                                     length=512, 
                                     byteorder='big'),
             'exchange': keys['exchange'].public,
@@ -1014,27 +1008,21 @@ class SecondParty1(_SecondPartyBase, _IdentityBase):
         n_sig = int.from_bytes(keys['signature'], byteorder='big')
         n_enc = int.from_bytes(keys['encryption'], byteorder='big')
         
+        nums_sig = rsa.RSAPublicNumbers(n=n_sig, e=65537)
+        nums_enc = rsa.RSAPublicNumbers(n=n_enc, e=65537)
+        
         unpackkeys = {
-            'signature': RSA.construct((n_sig, 65537)),
-            'encryption': RSA.construct((n_enc, 65537)),
+            'signature': nums_sig.public_key(CRYPTO_BACKEND),
+            'encryption': nums_enc.public_key(CRYPTO_BACKEND),
             'exchange': ECDHPublic(bytes(keys['exchange'])),
         }
         return unpackkeys
 
 
-# Signature constants.
-# Put these here because 1. explicit and 2. what if PCD API changes?
-# Explicit is better than implicit!
-# Don't include these in the class 1. to avoid cluttering it and 2. to avoid
-# accidentally passing self
-_PSS_SALT_LENGTH = SHA512.digest_size
-_RSA_MGF = lambda x, y: MGF1(x, y, SHA512)
-# example calls:
-# h = _FrozenSHA512(data)
-# PSS.new(private_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).sign(h)
-# or, on the receiving end:
-# PSS.new(public_key, mask_func=PSS_MGF, salt_bytes=PSS_SALT_LENGTH).verify(h, signature)
-# Verification returns nothing (=None) if successful, raises ValueError if not
+# RSA-PSS Signature salt length.
+# Put these here because explicit is better than implicit!
+_PSS_SALT_LENGTH = hashes.SHA512.digest_size
+
 class FirstParty1(_FirstPartyBase, _IdentityBase):
     ''' ... Hmmm
     '''
@@ -1048,8 +1036,8 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
     @classmethod
     def _generate_second_party(cls, keys, address_algo):
         pubkeys = {
-            'signature': keys['signature'].publickey(),
-            'encryption': keys['encryption'].publickey(),
+            'signature': keys['signature'].public_key(),
+            'encryption': keys['encryption'].public_key(),
             'exchange': keys['exchange'].get_public()
         } 
         del keys
@@ -1058,27 +1046,51 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
     @classmethod
     def _generate_keys(cls):
         keys = {}
-        keys['signature'] = RSA.generate(4096)
-        keys['encryption'] = RSA.generate(4096)
+        keys['signature'] = rsa.generate_private_key(
+            public_exponent = 65537,
+            key_size = 4096,
+            backend = CRYPTO_BACKEND
+        )
+        keys['encryption'] = rsa.generate_private_key(
+            public_exponent = 65537,
+            key_size = 4096,
+            backend = CRYPTO_BACKEND
+        )
         keys['exchange'] = ECDHPrivate()
         return keys
         
     def _serialize(self):
         return {
             'ghid': bytes(self.ghid),
-            'signature': self._signature_key.exportKey(format='DER'),
-            'encryption': self._encryption_key.exportKey(format='DER'),
+            'signature': self._signature_key.private_bytes(
+                encoding = serialization.Encoding.DER,
+                format = serialization.PrivateFormat.PKCS8,
+                encryption_algorithm = serialization.NoEncryption()
+            ),
+            'encryption': self._encryption_key.private_bytes(
+                encoding = serialization.Encoding.DER,
+                format = serialization.PrivateFormat.PKCS8,
+                encryption_algorithm = serialization.NoEncryption()
+            ),
             'exchange': bytes(self._exchange_key.private)
         }
         
     @classmethod
-    def _from_serialized(cls, serialization):
+    def _from_serialized(cls, condensed):
         try:
-            ghid = Ghid.from_bytes(serialization['ghid'])
+            ghid = Ghid.from_bytes(condensed['ghid'])
             keys = {
-                'signature': RSA.import_key(serialization['signature']),
-                'encryption': RSA.import_key(serialization['encryption']),
-                'exchange': ECDHPrivate.load(serialization['exchange'])
+                'signature': serialization.load_der_private_key(
+                    data = condensed['signature'],
+                    password = None,
+                    backend = CRYPTO_BACKEND
+                ),
+                'encryption': serialization.load_der_private_key(
+                    data = condensed['encryption'],
+                    password = None,
+                    backend = CRYPTO_BACKEND
+                ),
+                'exchange': ECDHPrivate.load(condensed['exchange'])
             }
         except (TypeError, KeyError) as e:
             raise TypeError(
@@ -1091,22 +1103,25 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
     def new_secret(cls):
         ''' Returns a new secure Secret().
         '''
-        key = get_random_bytes(32)
-        nonce = get_random_bytes(16)
+        key = os.urandom(32)
+        nonce = os.urandom(16)
         return super().new_secret(key=key, seed=nonce)
         
     @classmethod
     def _encrypt(cls, secret, data):
         ''' Symmetric encryptor.
         '''
-        # Courtesy of pycryptodome's API limitations:
+        # Could we do eg memoryview instead?
         if not isinstance(data, bytes):
             data = bytes(data)
-        # Convert the secret's seed (nonce) into an integer for pycryptodome
-        ctr_start = int.from_bytes(secret.seed, byteorder='big')
-        ctr = Counter.new(nbits=128, initial_value=ctr_start)
-        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
-        return cipher.encrypt(data)
+            
+        instance = ciphers.Cipher(
+            ciphers.algorithms.AES(secret.key),
+            ciphers.modes.CTR(secret.seed),
+            backend = CRYPTO_BACKEND
+        )
+        worker = instance.encryptor()
+        return worker.update(data) + worker.finalize()
         
     @classmethod
     def _decrypt(cls, secret, data):
@@ -1115,25 +1130,41 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         Handle multiple ciphersuites by having a SecondParty for
         whichever author created it, and calling their decrypt instead.
         '''
-        # Courtesy of pycryptodome's API limitations:
+        # Could we do eg memoryview instead?
         if not isinstance(data, bytes):
             data = bytes(data)
-        # Convert the secret's seed (nonce) into an integer for pycryptodome
-        ctr_start = int.from_bytes(secret.seed, byteorder='big')
-        ctr = Counter.new(nbits=128, initial_value=ctr_start)
-        cipher = AES.new(key=secret.key, mode=AES.MODE_CTR, counter=ctr)
-        return cipher.decrypt(data)
+            
+        instance = ciphers.Cipher(
+            ciphers.algorithms.AES(secret.key),
+            ciphers.modes.CTR(secret.seed),
+            backend = CRYPTO_BACKEND
+        )
+        worker = instance.decryptor()
+        return worker.update(data) + worker.finalize()
         
     def _sign(self, data):
         ''' Signing method.
         '''
-        h = _FrozenSHA512(data)
-        signer = PSS.new(
-            self._signature_key, 
-            mask_func=_RSA_MGF, 
-            salt_bytes=_PSS_SALT_LENGTH
+        signer = self._signature_key.signer(
+            padding.PSS(
+                mgf = padding.MGF1(hashes.SHA512()),
+                salt_length = _PSS_SALT_LENGTH
+            ),
+            hashes.SHA512()
         )
-        return signer.sign(h)
+        signer._hash_ctx = _NoopSHA512(data)
+        return signer.finalize()
+        
+        # IT WOULD BE NICE TO BE ABLE TO USE THIS GRRRRRRRRRRRRRRRRRR
+        signature = self._signature_key.sign(
+            bytes(data),
+            padding.PSS(
+                mgf = padding.MGF1(hashes.SHA512()),
+                salt_length = _PSS_SALT_LENGTH
+            ),
+            _NoopSHA512(data)
+        )
+        return signature
        
     @classmethod
     def _verify(cls, public, signature, data):
@@ -1146,12 +1177,31 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         '''
         cls._typecheck_2ndparty(public)
         
-        h = _FrozenSHA512(data)
-        signer = PSS.new(public._signature_key, mask_func=_RSA_MGF, salt_bytes=_PSS_SALT_LENGTH)
         try:
-            signer.verify(h, signature)
-        except ValueError as e:
-            raise SecurityError('Failed to verify signature.') from e
+            verifier = public._signature_key.verifier(
+                bytes(signature),
+                padding.PSS(
+                    mgf = padding.MGF1(hashes.SHA512()),
+                    salt_length = _PSS_SALT_LENGTH
+                ),
+                hashes.SHA512()
+            )
+            verifier._hash_ctx = _NoopSHA512(data)
+            verifier.verify()
+            
+            # IT WOULD BE NICE TO BE ABLE TO USE THIS TOO!!!! grumble grumble
+            # public._signature_key.verify(
+            #     bytes(signature),
+            #     bytes(data),
+            #     padding.PSS(
+            #         mgf = padding.MGF1(hashes.SHA512()),
+            #         salt_length = _PSS_SALT_LENGTH
+            #     ),
+            #     _NoopSHA512(data)
+            # )
+            
+        except InvalidSignature as exc:
+            raise SecurityError('Failed to verify signature.') from exc
             
         return True
         
@@ -1162,25 +1212,29 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         formatted with all necessary components for a public key.
         '''
         self._typecheck_2ndparty(public)
-        cipher = OAEP.new(
-            public._encryption_key, 
-            hashAlgo = SHA512, 
-            mgfunc = _RSA_MGF,
-            label=b''
+        
+        ciphertext = public._encryption_key.encrypt(
+            bytes(data),
+            padding.OAEP(
+                mgf = padding.MGF1(algorithm=hashes.SHA512()),
+                algorithm = hashes.SHA512(),
+                label = b''
+            )
         )
-        return cipher.encrypt(data)
+        
+        return ciphertext
         
     def _decrypt_asym(self, data):
         ''' Placeholder asymmetric decryptor.
         '''
-        cipher = OAEP.new(
-            self._encryption_key,
-            hashAlgo = SHA512,
-            mgfunc = _RSA_MGF,
-            label = b''
+        plaintext = self._encryption_key.decrypt(
+            bytes(data),
+            padding.OAEP(
+                mgf = padding.MGF1(algorithm=hashes.SHA512()),
+                algorithm = hashes.SHA512(),
+                label = b''
+            )
         )
-        plaintext = cipher.decrypt(data)
-        del cipher
         return plaintext
     
     def _derive_shared(self, partner):
@@ -1194,12 +1248,14 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
         their_hash = partner.ghid.address
         salt = bytes([a ^ b for a, b in zip(my_hash, their_hash)])
         
-        key = HKDF(
-            master = ecdh, 
-            key_len = SHA512.digest_size,
+        instance = hkdf.HKDF(
+            algorithm = hashes.SHA512(),
+            length = hashes.SHA512.digest_size,
             salt = salt,
-            hashmod = SHA512
+            info = b'',
+            backend = CRYPTO_BACKEND
         )
+        key = instance.derive(ecdh)
         # Might as well do this immediately, not that it really adds anything
         del ecdh, my_hash, their_hash, salt
         return key
@@ -1208,32 +1264,34 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
     def _mac(cls, key, data):
         ''' Generate a MAC for data using key.
         '''
-        h = HMAC.new(
-            key = key,
-            msg = data,
-            digestmod = SHA512
+        h = hmac.HMAC(
+            key,
+            hashes.SHA512(),
+            backend = CRYPTO_BACKEND
         )
-        d = h.digest()
-        # Do this "just in case" to prevent accidental future updates
-        del h
-        return d
+        h.update(data)
+        return h.finalize()
         
     @classmethod
     def _verify_mac(cls, key, mac, data):
         ''' Verify an existing MAC.
         '''
-        mac = bytes(mac)
-        data = bytes(data)
+        if not isinstance(mac, bytes):
+            mac = bytes(mac)
+        if not isinstance(data, bytes):
+            data = bytes(data)
         
-        h = HMAC.new(
-            key = key,
-            msg = data,
-            digestmod = SHA512
+        h = hmac.HMAC(
+            key,
+            hashes.SHA512(),
+            backend = CRYPTO_BACKEND
         )
+        h.update(data)
+        
         try:
             h.verify(mac)
-        except ValueError as e:
-            raise SecurityError('Failed to verify MAC.') from e
+        except InvalidSignature as exc:
+            raise SecurityError('Failed to verify MAC.') from exc
             
         return True
         

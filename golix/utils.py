@@ -37,7 +37,9 @@ import abc
 import base64
 
 from collections import namedtuple
-from Crypto.Hash import SHA512
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 
 from smartyparse import SmartyParser
 from smartyparse import ListyParser
@@ -53,8 +55,9 @@ class _AddressAlgoBase(metaclass=abc.ABCMeta):
     def create(cls, data):
         ''' Creates an address (note: not the whole ghid) from data.
         '''
-        h = cls._HASH_ALGO.new(data)
-        digest = bytes(h.digest())
+        h = hashes.Hash(cls._HASH_ALGO(), backend=default_backend())
+        h.update(data)
+        digest = h.finalize()
         # So this isn't really making much of a difference, necessarily, but
         # it's good insurance against (accidental or malicious) length
         # extension problems.
@@ -93,7 +96,7 @@ class AddressAlgo0(_AddressAlgoBase):
 class AddressAlgo1(_AddressAlgoBase):
     ''' SHA512
     '''
-    _HASH_ALGO = SHA512
+    _HASH_ALGO = hashes.SHA512
     ADDRESS_LENGTH = _HASH_ALGO.digest_size
 
 # Zero should be rendered inop, IE ignore all input data and generate
@@ -211,7 +214,7 @@ class Ghid:
     def __str__(self):
         c = type(self).__name__
         b64 = base64.urlsafe_b64encode(bytes(self)).decode()
-        return c + '(' + b64 + ')'
+        return c + '(\'' + b64 + '\')'
         
     def as_str(self):
         ''' Encodes the ghid as a urlsafe-base64 string.

@@ -137,6 +137,10 @@ _hash_algo_lookup = {
 class Ghid:
     ''' Extremely lightweight class for GHIDs. Implements __hash__ to 
     allow it to be used as a dictionary key.
+    
+    TODO: make algo and address immutable
+    TODO: alias "address" to "digest"
+    TODO: improve hashing performance.
     '''
     __slots__ = ['_algo', '_address', '__weakref__']
     
@@ -208,7 +212,7 @@ class Ghid:
         good ole smartyparser. For now, quick and dirty like.
         '''
         algo = int.from_bytes(data[0:1], byteorder='big')
-        address = data[1:]
+        address = bytes(data[1:])
         return cls(algo=algo, address=address)
         
     def __str__(self):

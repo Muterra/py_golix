@@ -121,6 +121,7 @@ from .utils import _dummy_signature
 from .utils import _dummy_address
 from .utils import _dummy_ghid
 from .utils import _dummy_pubkey
+from .utils import _dummy_pubkey_exchange
 
 from ._getlow import GIDC
 from ._getlow import GEOC
@@ -402,12 +403,12 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         gobs.pack_signature(signature)
         return gobs
         
-    def make_bind_dynamic(self, target, ghid_dynamic=None, history=None):
+    def make_bind_dynamic(self, counter, target_vector, ghid_dynamic=None):
         gobd = GOBD(
             binder = self.ghid,
-            target = target,
-            ghid_dynamic = ghid_dynamic,
-            history = history
+            counter = counter,
+            target_vector = target_vector,
+            ghid_dynamic = ghid_dynamic
         )
         gobd.pack(cipher=self.ciphersuite, address_algo=self.address_algo)
         signature = self._sign(gobd.ghid.address)
@@ -857,14 +858,14 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         keys = {}
         keys['signature'] = _dummy_pubkey
         keys['encryption'] = _dummy_pubkey
-        keys['exchange'] = _dummy_pubkey
+        keys['exchange'] = _dummy_pubkey_exchange
         return cls._2PID.from_keys(keys, address_algo)
         
     def _generate_keys(self):
         keys = {}
         keys['signature'] = _dummy_pubkey
         keys['encryption'] = _dummy_pubkey
-        keys['exchange'] = _dummy_pubkey
+        keys['exchange'] = _dummy_pubkey_exchange
         return keys
         
     def _serialize(self):
@@ -951,7 +952,7 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         
         Data should be bytes-like. Key should be bytes-like.
         '''
-        return b'[[ PLACEHOLDER DECRYPTED SYMMETRIC MESSAGE. Hello world! ]]'
+        return data
         
     @classmethod
     def _encrypt(cls, secret, data):
@@ -959,7 +960,7 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         
         Data should be bytes-like. Key should be bytes-like.
         '''
-        return b'[[ PLACEHOLDER ENCRYPTED SYMMETRIC MESSAGE. Hello, world? ]]'
+        return data
     
     def _derive_shared(self, partner):
         ''' Derive a shared secret with the partner.

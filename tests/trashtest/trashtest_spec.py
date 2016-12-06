@@ -46,6 +46,7 @@ from golix.utils import _dummy_mac
 from golix.utils import _dummy_asym
 from golix.utils import _dummy_address
 from golix.utils import _dummy_pubkey
+from golix.utils import _dummy_pubkey_exchange
 
 # ###############################################
 # Testing
@@ -67,7 +68,7 @@ class SpecTest(unittest.TestCase):
             'body': {
                 'signature_key': _dummy_pubkey,
                 'encryption_key': _dummy_pubkey,
-                'exchange_key': _dummy_pubkey,
+                'exchange_key': _dummy_pubkey_exchange,
             },
             'ghid': _dummy_ghid,
             'signature': None

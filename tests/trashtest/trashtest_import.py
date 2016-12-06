@@ -32,13 +32,40 @@ golix: A python library for Golix protocol object manipulation.
 ------------------------------------------------------
 
 '''
+
 import unittest
 import sys
+import collections
+
+# These are normal imports
+from golix import Ghid
+from golix import ThirdParty
+from golix import SecondParty
+from golix import FirstParty
 
 # ###############################################
 # Testing
 # ###############################################
+    
+class TestTrash(unittest.TestCase):
+    def test_trash(self):
+        # Check this out!
+        known_second_parties = {}
+        # known_second_parties[fake_second_id.ghid] = fake_second_id
+        
+        server1 = ThirdParty()
+        
+        agent1 = FirstParty()
+        agent2 = FirstParty()
+        
+        reader1 = agent1.second_party
+        reader2 = agent2.second_party
+        # Test loading from file
+        packed_id = reader2.packed
+        unpacked_id = server1.unpack_object(packed_id)
+        
+        reader2 = SecondParty.from_identity(unpacked_id)
+
                 
 if __name__ == '__main__':
-    from trashtest import *
     unittest.main()

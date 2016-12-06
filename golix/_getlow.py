@@ -1051,7 +1051,8 @@ class GARQHandshake(_AsymBase):
     '''
     PARSER = _asym_hand
     
-    def __init__(self, target=None, secret=None, _control=None, *args, **kwargs):
+    def __init__(self, target=None, secret=None, _control=None, *args,
+                 **kwargs):
         super().__init__(_control=_control, *args, **kwargs)
         if _control is None:
             self._control['payload'] = {}
@@ -1131,7 +1132,9 @@ class GARQAck(_AsymBase):
     @status.setter
     def status(self, value):
         # if value is not None and not isinstance(value, Secret):
-        #     raise TypeError('Can only assign secret as a Secret-like object.')
+        #     raise TypeError(
+        #         'Can only assign secret as a Secret-like object.'
+        #     )
         # else:
         #     self._status = value
         self._status = value

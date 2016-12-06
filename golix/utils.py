@@ -1,5 +1,5 @@
 '''
-Cross-library utilities excluded from core.py or cipher.py to avoid 
+Cross-library utilities excluded from core.py or cipher.py to avoid
 circular imports.
 
 LICENSING
@@ -52,6 +52,7 @@ from smartyparse import references
 # ----------------------------------------------------------------------
 # Address algorithms
 
+
 class _AddressAlgoBase(metaclass=abc.ABCMeta):
     @classmethod
     def create(cls, data):
@@ -101,37 +102,52 @@ class AddressAlgo1(_AddressAlgoBase):
     _HASH_ALGO = hashes.SHA512
     ADDRESS_LENGTH = _HASH_ALGO.digest_size
 
+
 # Zero should be rendered inop, IE ignore all input data and generate
 # symbolic representations
 ADDRESS_ALGOS = {
     0: AddressAlgo0,
     1: AddressAlgo1
 }
-    
+
+
 def hash_lookup(num):
     try:
         return ADDRESS_ALGOS[num]
-    except KeyError as e:
-        raise ValueError('Address algo "' + str(num) + '" is undefined.') from e
+    except KeyError as exc:
+        raise ValueError(
+            'Address algo "' + str(num) + '" is undefined.'
+        ) from exc
 
 
 # ----------------------------------------------------------------------
 # Mock objects for zeroth hash/ciphersuites
 
-_dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
-_dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
-_dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
-_dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
-_dummy_pubkey = b'[ ' + (b'-') * 245 + b' MOCK PUBLIC KEY ' + (b'-') * 246 + b' ]'
-_dummy_pubkey_exchange = b'[ ' + (b'-') * 6 + b' MOCK PUBLIC KEY ' + (b'-') * 5 + b' ]'
+
+_dummy_address = \
+    b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
+_dummy_signature = \
+    b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
+_dummy_mac = \
+    b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
+_dummy_asym = \
+    b'[[ Start asymmetric payload ' + (b'-' * 458) + \
+    b' End asymmetric payload ]]'
+_dummy_pubkey = \
+    b'[ ' + (b'-') * 245 + b' MOCK PUBLIC KEY ' + (b'-') * 246 + b' ]'
+_dummy_pubkey_exchange = \
+    b'[ ' + (b'-') * 6 + b' MOCK PUBLIC KEY ' + (b'-') * 5 + b' ]'
+
 
 # ----------------------------------------------------------------------
 # Hash algo identifier / length block
+
 
 _hash_algo_lookup = {
     0: ParseHelper(parsers.Blob(length=len(_dummy_address))),
     1: ParseHelper(parsers.Blob(length=64))
 }
+
 
 # ----------------------------------------------------------------------
 # Ghids and parsers therefore.
@@ -288,11 +304,13 @@ def generate_ghid_parser():
     return ghid_parser
     
     
-def generate_ghidlist_parser():    
+def generate_ghidlist_parser():
     return ListyParser(parsers=[generate_ghid_parser()])
+
 
 # ----------------------------------------------------------------------
 # Generalized object dispatchers
+
 
 def _gen_dispatch(header, lookup, key):
     @references(header)
@@ -302,7 +320,8 @@ def _gen_dispatch(header, lookup, key):
         except KeyError:
             raise parsers.ParseError('No matching version number available.')
     return _dispatch_obj
-    
+
+
 # This should keep working even with the addition of new version numbers
 def _gen_body_update(header, lookup, key):
     @references(header)
@@ -312,15 +331,18 @@ def _gen_body_update(header, lookup, key):
         except KeyError:
             raise parsers.ParseError('No matching object body key available.')
     return _update_body
-    
+
+
 def _callback_multi(*funcs):
     def generated_callback(value):
         for f in funcs:
             f(value)
     return generated_callback
 
+
 # ----------------------------------------------------------------------
 # Cipher length lookup block
+
 
 cipher_length_lookup = {
     0: {
@@ -362,6 +384,7 @@ _secret_parser['cipher'] = ParseHelper(parsers.Int8(signed=False))
 _secret_parser['key'] = None
 _secret_parser['seed'] = None
 
+
 def _secret_cipher_update(cipher):
     key_length = cipher_length_lookup[cipher]['key']
     seed_length = cipher_length_lookup[cipher]['seed']
@@ -369,11 +392,11 @@ def _secret_cipher_update(cipher):
     _secret_parser['seed'] = ParseHelper(parsers.Blob(length=seed_length))
 
 _secret_parser['cipher'].register_callback(
-    'prepack', 
+    'prepack',
     _secret_cipher_update
 )
 _secret_parser['cipher'].register_callback(
-    'postunpack', 
+    'postunpack',
     _secret_cipher_update
 )
 
@@ -387,8 +410,8 @@ _secret_versions = set(_secret_parsers)
     
     
 class Secret:
-    ''' All secrets have a key. Some have a nonce or IV (seed). All must 
-    be able to be condensed into __bytes__. All must also be retrievable 
+    ''' All secrets have a key. Some have a nonce or IV (seed). All must
+    be able to be condensed into __bytes__. All must also be retrievable
     from a bytes object.
     '''
     # We expect to have a lot of secrets, so let's add slots. Also, there's
@@ -398,7 +421,7 @@ class Secret:
     MAGIC = _secret_parser['magic'].parser.value
     
     def __init__(self, cipher, key, seed=None, version='latest'):
-        # Most of these checks should probably be moved into property 
+        # Most of these checks should probably be moved into property
         # setters.
         if seed is None:
             seed = b''
@@ -468,14 +491,14 @@ class Secret:
             'magic': self.MAGIC,
             'version': self.version,
             'cipher': self.cipher,
-            'key': self.key, 
+            'key': self.key,
             'seed': self.seed
         }
             
     def __repr__(self):
         c = type(self).__name__
         return (
-            c + 
+            c +
             '(cipher=' + repr(self.cipher) + ', '
             'key=' + repr(self.key) + ', '
             'seed=' + repr(self.seed) + ', '
@@ -484,16 +507,16 @@ class Secret:
         
     def __hash__(self):
         return (
-            hash(self.cipher) ^ 
-            hash(self.version) ^ 
-            hash(self.key) ^ 
+            hash(self.cipher) ^
+            hash(self.version) ^
+            hash(self.key) ^
             hash(self.seed)
         )
         
     def __eq__(self, other):
         try:
             return (
-                self.cipher == other.cipher and 
+                self.cipher == other.cipher and
                 self.version == other.version and
                 self.key == other.key and
                 self.seed == other.seed

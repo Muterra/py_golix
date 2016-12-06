@@ -3,7 +3,7 @@ py_golix
 
 Golix: Python.
 
-A python library for [Golix protocol](https://github.com/Muterra/doc-golix) objects that is in dire need of a complete rewrite.
+A python library for [Golix protocol](https://github.com/Muterra/doc-golix) objects that is in dire need of a complete rewrite. This code definitely doesn't meet Muterra quality standards, and the API design is very bad.
 
 [![Code Climate](https://codeclimate.com/github/Muterra/py_golix/badges/gpa.svg)](https://codeclimate.com/github/Muterra/py_golix)
 

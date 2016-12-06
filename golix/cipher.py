@@ -72,22 +72,9 @@ Some initial temporary thoughts:
     of being overwritten
 '''
 
-# Control * imports
-__all__ = [
-    'FirstParty1',
-    'SecondParty1',
-    'ThirdParty1'
-]
-
 # Global dependencies
-import io
-import struct
-import collections
 import abc
-import json
-import base64
 import os
-from warnings import warn
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import hmac
@@ -98,7 +85,6 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.kdf import hkdf
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
-CRYPTO_BACKEND = default_backend()
 
 from donna25519 import PrivateKey as ECDHPrivate
 from donna25519 import PublicKey as ECDHPublic
@@ -135,8 +121,17 @@ from ._getlow import GARQAck
 from ._getlow import GARQNak
 
 # Some globals
+CRYPTO_BACKEND = default_backend()
 DEFAULT_ADDRESSER = 1
 DEFAULT_CIPHER = 1
+
+
+# Control * imports
+__all__ = [
+    'FirstParty1',
+    'SecondParty1',
+    'ThirdParty1'
+]
 
 
 # Some utilities
@@ -333,7 +328,8 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
 class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
     DEFAULT_ADDRESS_ALGO = DEFAULT_ADDRESSER
     
-    def __init__(self, keys=None, ghid=None, address_algo='default', *args, **kwargs):
+    def __init__(self, keys=None, ghid=None, address_algo='default', *args,
+                 **kwargs):
         self.address_algo = self._dispatch_address(address_algo)
         
         # Load an existing identity

@@ -60,7 +60,7 @@ from .utils import generate_ghidlist_parser
 
 _signature_parsers = {}
 _signature_parsers[0] = ParseHelper(
-    parsers.Literal(_dummy_signature, verify=True))
+    parsers.Blob(length=512))
 _signature_parsers[1] = ParseHelper(
     parsers.Blob(length=512))
 _signature_parsers[2] = ParseHelper(
@@ -68,7 +68,7 @@ _signature_parsers[2] = ParseHelper(
 
 _mac_parsers = {}
 _mac_parsers[0] = ParseHelper(
-    parsers.Literal(_dummy_mac, verify=True))
+    parsers.Blob(length=64))
 _mac_parsers[1] = ParseHelper(
     parsers.Blob(length=64))
 _mac_parsers[2] = ParseHelper(
@@ -76,7 +76,7 @@ _mac_parsers[2] = ParseHelper(
 
 _asym_parsers = {}
 _asym_parsers[0] = ParseHelper(
-    parsers.Literal(_dummy_asym, verify=True))
+    parsers.Blob(length=512))
 _asym_parsers[1] = ParseHelper(
     parsers.Blob(length=512))
 _asym_parsers[2] = ParseHelper(
@@ -84,7 +84,7 @@ _asym_parsers[2] = ParseHelper(
 
 _pubkey_parsers_sig = {}
 _pubkey_parsers_sig[0] = ParseHelper(
-    parsers.Literal(_dummy_pubkey, verify=True))
+    parsers.Blob(length=512))
 _pubkey_parsers_sig[1] = ParseHelper(
     parsers.Blob(length=512))
 _pubkey_parsers_sig[2] = ParseHelper(
@@ -92,7 +92,7 @@ _pubkey_parsers_sig[2] = ParseHelper(
 
 _pubkey_parsers_encrypt = {}
 _pubkey_parsers_encrypt[0] = ParseHelper(
-    parsers.Literal(_dummy_pubkey, verify=True))
+    parsers.Blob(length=512))
 _pubkey_parsers_encrypt[1] = ParseHelper(
     parsers.Blob(length=512))
 _pubkey_parsers_encrypt[2] = ParseHelper(
@@ -100,7 +100,7 @@ _pubkey_parsers_encrypt[2] = ParseHelper(
 
 _pubkey_parsers_exchange = {}
 _pubkey_parsers_exchange[0] = ParseHelper(
-    parsers.Literal(_dummy_pubkey, verify=True))
+    parsers.Blob(length=32))
 _pubkey_parsers_exchange[1] = ParseHelper(
     parsers.Blob(length=32))
 _pubkey_parsers_exchange[2] = ParseHelper(

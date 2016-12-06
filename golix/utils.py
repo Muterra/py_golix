@@ -122,7 +122,8 @@ _dummy_address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
 _dummy_signature = b'[[ Start signature ' + (b'-' * 476) + b' End signature ]]'
 _dummy_mac = b'[[ Start MAC ' + (b'-' * 40) + b' End MAC ]]'
 _dummy_asym = b'[[ Start asymmetric payload ' + (b'-' * 458) + b' End asymmetric payload ]]'
-_dummy_pubkey = b'[ ' + (b'-') * 21 + b' MOCK PUBLIC KEY ' + (b'-') * 22 + b' ]'
+_dummy_pubkey = b'[ ' + (b'-') * 245 + b' MOCK PUBLIC KEY ' + (b'-') * 246 + b' ]'
+_dummy_pubkey_exchange = b'[ ' + (b'-') * 6 + b' MOCK PUBLIC KEY ' + (b'-') * 5 + b' ]'
 
 # ----------------------------------------------------------------------
 # Hash algo identifier / length block

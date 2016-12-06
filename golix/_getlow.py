@@ -9,7 +9,7 @@ golix: A python library for Golix protocol object manipulation.
     
     Contributors
     ------------
-    Nick Badger 
+    Nick Badger
         badg@muterra.io | badg@nickbadger.com | nickbadger.com
 
     This library is free software; you can redistribute it and/or
@@ -23,29 +23,21 @@ golix: A python library for Golix protocol object manipulation.
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to the 
+    License along with this library; if not, write to the
     Free Software Foundation, Inc.,
-    51 Franklin Street, 
-    Fifth Floor, 
+    51 Franklin Street,
+    Fifth Floor,
     Boston, MA  02110-1301 USA
 
 ------------------------------------------------------
 
 '''
 
-# Control * imports
-__all__ = [
-    'GIDC', 
-    'GEOC', 
-    'GOBS', 
-    'GOBD', 
-    'GDXX', 
-    'GARQ'
-]
-
 # Global dependencies
 import abc
 import collections
+
+from smartyparse import parsers
 
 from ._spec import _gidc
 from ._spec import _geoc
@@ -66,6 +58,17 @@ from .utils import hash_lookup
 from .utils import Ghid
 from .utils import SecurityError
 from .utils import Secret
+
+
+# Control * imports
+__all__ = [
+    'GIDC',
+    'GEOC',
+    'GOBS',
+    'GOBD',
+    'GDXX',
+    'GARQ'
+]
 
         
 # ###############################################
@@ -91,7 +94,7 @@ from .utils import Secret
 # the word monkeypatch to suit my needs. In other news, the MetaPolice are
 # coming for me, and I have no defense lawyer.
         
-# Strategy for gratuitous duck-punching: 
+# Strategy for gratuitous duck-punching:
 # 1. Declare a mutable caching object: []
 # 2. Generate a caching callback on the fly, referencing that object
 # 3. Register that callback on the fly as postpack on ghid, with modify=False
@@ -110,6 +113,7 @@ def _generate_offset_cacher(cache, ghid_parser):
         start = ghid_parser.offset + 1
         cache.append(start)
     return offset_cacher
+
 
 def _generate_ghid_rewriter(parent_smartyparser, addresser):
     def ghid_rewriter(ghid):
@@ -163,7 +167,7 @@ def _typecheck_ghidlist(iterable):
     
 
 class _GolixObjectBase(metaclass=abc.ABCMeta):
-    ''' Golix object bases should handle all of the parsing/building 
+    ''' Golix object bases should handle all of the parsing/building
     dispatch. From there, the subclasses handle object creation, roughly
     equivalent to the object defs spat out by the smartyparsers.
     
@@ -171,7 +175,7 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
     parse handling? Or should that be @staticmethod?
     '''
     
-    def __init__(self, version='latest', _control=None):   
+    def __init__(self, version='latest', _control=None):
         # Do this first to initialize state.
         self._address_algo = None
         self._signed = False
@@ -189,7 +193,7 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
             # Handle the version infos, adjusting if version is latest
             version = self._handle_version(version)
             
-            # All checks passed, go ahead and load the 
+            # All checks passed, go ahead and load the
             self._control = {
                 # This gets the value of the literal from the parser
                 'magic': self.PARSER['magic'].parser.value,
@@ -199,6 +203,12 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
                 'ghid': None,
                 'signature': None
             }
+            
+    @property
+    def magic(self):
+        ''' Get the magic "number" associated with the format.
+        '''
+        return self.PARSER['magic'].parser.value
             
     def _handle_version(self, version):
         if version == 'latest':
@@ -248,7 +258,7 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         
     @property
     def cipher(self):
-        if self._control['cipher'] != None:
+        if self._control['cipher'] is not None:
             return self._control['cipher']
         else:
             raise RuntimeError('Cipher has not yet been defined.')
@@ -271,8 +281,8 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
             raise RuntimeError('Address algorithm not yet defined.')
     
     def _get_sig_length(self):
-        ''' Quick and dirty way to get the object's signature length; 
-        easily overwritten when it's not the cipher defined (eg: gidc, 
+        ''' Quick and dirty way to get the object's signature length;
+        easily overwritten when it's not the cipher defined (eg: gidc,
         garq).
         
         # Accommodate SP on the whole damn thing currently.
@@ -344,7 +354,8 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         '''
         # Accommodate SP
         offset_cache = []
-        offset_cacher = _generate_offset_cacher(offset_cache, cls.PARSER['ghid'])
+        offset_cacher = \
+            _generate_offset_cacher(offset_cache, cls.PARSER['ghid'])
         cls.PARSER['ghid'].register_callback('preunpack', offset_cacher)
         
         # Normal
@@ -361,6 +372,31 @@ class _GolixObjectBase(metaclass=abc.ABCMeta):
         
         # Don't forget this part.
         return self
+        
+    def __eq__(self, other):
+        ''' Ehh, just compare controls.
+        '''
+        try:
+            return self._control == other._control
+        except AttributeError as exc:
+            raise TypeError(
+                'Incomparable types: ' + str(type(self)) + ' vs ' +
+                str(type(other))
+            ) from exc
+        
+    # def __eq__(self, other):
+    #     ''' Compare based on attributes defined in each class.
+    #     '''
+    #     comp = True
+    #     try:
+    #         for attr in self._ATTR_COMPS:
+    #             comp &= (getattr(self, attr) == getattr(other, attr))
+            
+    #     except AttributeError as exc:
+    #         raise TypeError(
+    #             'Incomparable types: ' + str(type(self)) + ' vs ' +
+    #             str(type(other))
+    #         ) from exc
        
 
 class GIDC(_GolixObjectBase):
@@ -369,13 +405,12 @@ class GIDC(_GolixObjectBase):
     Low level object. In most cases, you don't want this.
     '''
     PARSER = _gidc
+    _ATTR_COMPS = ['magic', 'version', 'cipher', 'ghid', 'signature_key',
+                   'encryption_key', 'exchange_key']
     
-    def __init__(self, 
-                signature_key=None, 
-                encryption_key=None, 
-                exchange_key=None, 
-                _control=None, *args, **kwargs):
-        ''' Generates GIDC object. Keys must be suitable for the 
+    def __init__(self, signature_key=None, encryption_key=None,
+                 exchange_key=None, _control=None, *args, **kwargs):
+        ''' Generates GIDC object. Keys must be suitable for the
         declared ciphersuite.
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -452,8 +487,11 @@ class GEOC(_GolixObjectBase):
     and unencrypted bytes.
     '''
     PARSER = _geoc
+    _ATTR_COMPS = ['magic', 'version', 'cipher', 'ghid', 'signature',
+                   'payload', 'author']
     
-    def __init__(self, author=None, payload=None, _control=None, *args, **kwargs):
+    def __init__(self, author=None, payload=None, _control=None, *args,
+                 **kwargs):
         ''' Generates GEOC object.
         
         Author should be a utils.Ghid object (or similar).
@@ -506,8 +544,11 @@ class GOBS(_GolixObjectBase):
     perform state management.
     '''
     PARSER = _gobs
+    _ATTR_COMPS = ['magic', 'version', 'cipher', 'ghid', 'signature',
+                   'binder', 'target']
     
-    def __init__(self, binder=None, target=None, _control=None, *args, **kwargs):
+    def __init__(self, binder=None, target=None, _control=None, *args,
+                 **kwargs):
         ''' Generates GOBS object.
         
         Binder and target should be a utils.Ghid object (or similar).
@@ -555,6 +596,8 @@ class GOBD(_GolixObjectBase):
     perform state management.
     '''
     PARSER = _gobd
+    _ATTR_COMPS = ['magic', 'version', 'cipher', 'ghid', 'signature',
+                   'binder', 'counter', 'ghid_dynamic', 'target_vector']
     
     def __init__(self, binder=None, counter=None, target_vector=None,
                  ghid_dynamic=None, _control=None, *args, **kwargs):
@@ -778,8 +821,11 @@ class GDXX(_GolixObjectBase):
     perform state management.
     '''
     PARSER = _gdxx
+    _ATTR_COMPS = ['magic', 'version', 'cipher', 'ghid', 'signature',
+                   'debinder', 'target']
     
-    def __init__(self, debinder=None, target=None, _control=None, *args, **kwargs):
+    def __init__(self, debinder=None, target=None, _control=None, *args,
+                 **kwargs):
         ''' Generates GDXX object.
         
         Binder and target should be a utils.Ghid object (or similar).
@@ -827,11 +873,14 @@ class GARQ(_GolixObjectBase):
     perform state management.
     '''
     PARSER = _garq
+    _ATTR_COMPS = ['magic', 'version', 'cipher', 'ghid', 'signature',
+                   'recipient', 'payload']
     
-    def __init__(self, recipient=None, payload=None, _control=None, *args, **kwargs):
+    def __init__(self, recipient=None, payload=None, _control=None, *args,
+                 **kwargs):
         ''' Generates GARQ object.
         
-        Recipient must be a utils.Ghid object (or similar). 
+        Recipient must be a utils.Ghid object (or similar).
         Payload must be bytes-like.
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -870,7 +919,7 @@ class GARQ(_GolixObjectBase):
         
     @property
     def author(self):
-        ''' Read only property for author. Only available during the 
+        ''' Read only property for author. Only available during the
         unpacking -> verification process.
         '''
         if self._author is None:
@@ -882,13 +931,13 @@ class GARQ(_GolixObjectBase):
             
     @author.deleter
     def author(self):
-        ''' Implement the deleter as a return to None to prevent ever raising 
+        ''' Implement the deleter as a return to None to prevent ever raising
         AttributeError.
         '''
         self._author = None
     
     # # None of this is useful. Pass it pre-encrypted payload instead.
-    # # AKA, handle upstream. 
+    # # AKA, handle upstream.
         
     # @property
     # def payload(self):
@@ -904,7 +953,7 @@ class GARQ(_GolixObjectBase):
     #             'Payload must be an AsymRequest, AsymAck, AsymNak, or '
     #             'AsymElse object.'
     #         )
-    #     self._payload_obj = value   
+    #     self._payload_obj = value
         
     # def pack(self, *args, **kwargs):
     #     ''' Initialize output of payload, and then call super.
@@ -924,7 +973,7 @@ class GARQ(_GolixObjectBase):
         
 
 class _AsymBase():
-    ''' AsymBase class should handle all of the parsing/building 
+    ''' AsymBase class should handle all of the parsing/building
     dispatch. From there, the subclasses handle object creation, roughly
     equivalent to the object defs spat out by the smartyparsers.
     '''
@@ -935,8 +984,8 @@ class _AsymBase():
             self._control = _control
             
         # Creating from scratch. Now we have some actual work to do.
-        else:            
-            # All checks passed, go ahead and load the 
+        else:
+            # All checks passed, go ahead and load the
             self._control = {
                 # This gets the value of the literal from the parser
                 'author': author,
@@ -984,6 +1033,17 @@ class _AsymBase():
         self._packed = memoryview(data)
         
         return self
+        
+    def __eq__(self, other):
+        ''' Ehh, just compare controls.
+        '''
+        try:
+            return self._control == other._control
+        except AttributeError as exc:
+            raise TypeError(
+                'Incomparable types: ' + str(type(self)) + ' vs ' +
+                str(type(other))
+            ) from exc
 
 
 class GARQHandshake(_AsymBase):
@@ -1038,7 +1098,7 @@ class GARQHandshake(_AsymBase):
         
 
 class GARQAck(_AsymBase):
-    ''' Asymmetric pipe acknowledgement. 
+    ''' Asymmetric pipe acknowledgement.
     Used as payload in GARQ objects.
     '''
     PARSER = _asym_ak
@@ -1091,7 +1151,7 @@ class GARQAck(_AsymBase):
 
 
 class GARQNak(GARQAck):
-    ''' Asymmetric pipe non-acknowledgement. 
+    ''' Asymmetric pipe non-acknowledgement.
     Used as payload in GARQ objects.
     Other than magic, identical to AsymAck.
     '''

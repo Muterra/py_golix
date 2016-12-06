@@ -58,6 +58,7 @@ from golix.utils import _dummy_mac
 from golix.utils import _dummy_asym
 from golix.utils import _dummy_address
 from golix.utils import _dummy_pubkey
+from golix.utils import _dummy_pubkey_exchange
 from golix.utils import _dummy_ghid
 
 # These are soon-to-be-removed abnormal imports
@@ -83,9 +84,9 @@ class TestLow(unittest.TestCase):
     def test_gidc_placeholder_address(self):
         # GIDC dummy address test.
         gidc_1 = GIDC(
-            signature_key=_dummy_pubkey,
-            encryption_key=_dummy_pubkey,
-            exchange_key=_dummy_pubkey,
+            signature_key = _dummy_pubkey,
+            encryption_key = _dummy_pubkey,
+            exchange_key = _dummy_pubkey_exchange,
         )
         gidc_1.pack(cipher=0, address_algo=0)
         gidc_1p = gidc_1.packed
@@ -96,9 +97,9 @@ class TestLow(unittest.TestCase):
     def test_gidc_real_address(self):
         # GIDC actual address test.
         gidc_2 = GIDC(
-            signature_key=_dummy_pubkey,
-            encryption_key=_dummy_pubkey,
-            exchange_key=_dummy_pubkey,
+            signature_key = _dummy_pubkey,
+            encryption_key = _dummy_pubkey,
+            exchange_key = _dummy_pubkey_exchange,
         )
         gidc_2.pack(cipher=0, address_algo=1)
         gidc_2p = gidc_2.packed

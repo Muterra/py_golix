@@ -10,7 +10,7 @@ golix: A python library for Golix protocol object manipulation.
     
     Contributors
     ------------
-    Nick Badger 
+    Nick Badger
         badg@muterra.io | badg@nickbadger.com | nickbadger.com
 
     This library is free software; you can redistribute it and/or
@@ -24,10 +24,10 @@ golix: A python library for Golix protocol object manipulation.
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to the 
+    License along with this library; if not, write to the
     Free Software Foundation, Inc.,
-    51 Franklin Street, 
-    Fifth Floor, 
+    51 Franklin Street,
+    Fifth Floor,
     Boston, MA  02110-1301 USA
 
 ------------------------------------------------------
@@ -35,6 +35,8 @@ golix: A python library for Golix protocol object manipulation.
 '''
 import abc
 import base64
+# This is just used for ghids.
+import random
 
 from collections import namedtuple
 
@@ -76,7 +78,7 @@ class _AddressAlgoBase(metaclass=abc.ABCMeta):
     
     
 class AddressAlgo0(_AddressAlgoBase):
-    ''' FOR TESTING PURPOSES ONLY. 
+    ''' FOR TESTING PURPOSES ONLY.
     
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
@@ -135,14 +137,33 @@ _hash_algo_lookup = {
 
 
 class Ghid:
-    ''' Extremely lightweight class for GHIDs. Implements __hash__ to 
+    ''' Extremely lightweight class for GHIDs. Implements __hash__ to
     allow it to be used as a dictionary key.
     
     TODO: make algo and address immutable
     TODO: alias "address" to "digest"
-    TODO: improve hashing performance.
     '''
     __slots__ = ['_algo', '_address', '__weakref__']
+    
+    @classmethod
+    def placeholder(cls):
+        ''' Create a dummy ghid for hex inspection.
+        '''
+        return cls(
+            algo = 0,
+            address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
+        )
+        
+    @classmethod
+    def pseudorandom(cls, algo):
+        ''' Create a pseudorandom ghid for the specified algo. WARNING:
+        THIS IS NOT CSRNG! DO NOT USE THIS FOR ANYTHING EXCEPT TESTING!
+        '''
+        addy_len = hash_lookup(algo).ADDRESS_LENGTH
+        return cls(
+            algo = algo,
+            address = bytes([random.randint(0, 255) for i in range(addy_len)])
+        )
     
     def __init__(self, algo, address):
         self.algo = algo
@@ -155,8 +176,8 @@ class Ghid:
         setattr(self, item, value)
         
     def __hash__(self):
-        condensed = bytes(self)
-        return hash(condensed)
+        # XOR the algo's hash with the address' hash
+        return hash(self.algo) ^ hash(self.address)
         
     def __eq__(self, other):
         try:
@@ -169,7 +190,7 @@ class Ghid:
     def __repr__(self):
         c = type(self).__name__
         return (
-            c + 
+            c +
             '(algo=' + repr(self.algo) + ', '
             'address=' + repr(self.address) + ')'
         )
@@ -191,9 +212,6 @@ class Ghid:
             
     @address.setter
     def address(self, address):
-        if self.algo == 0 and address is None:
-            address = b'[[ Start hash ' + (b'-' * 38) + b' End hash ]]'
-            
         expected_length = hash_lookup(self.algo).ADDRESS_LENGTH
         if len(address) != expected_length:
             raise ValueError('Address length does not match algorithm.')
@@ -203,11 +221,12 @@ class Ghid:
     def __bytes__(self):
         ''' For now, quick and dirty like.
         '''
-        return int.to_bytes(self.algo, length=1, byteorder='big') + self.address
+        return int.to_bytes(self.algo, length=1, byteorder='big') + \
+            self.address
         
     @classmethod
     def from_bytes(cls, data, autoconsume=False):
-        ''' Trashy method for building a Ghid from bytes. Should 
+        ''' Trashy method for building a Ghid from bytes. Should
         probably rework to do some type checking or summat, or use the
         good ole smartyparser. For now, quick and dirty like.
         '''
@@ -233,7 +252,7 @@ class Ghid:
         return cls.from_bytes(raw)
         
         
-_dummy_ghid = Ghid(0, _dummy_address)
+_dummy_ghid = Ghid.placeholder()
 
 
 def _ghid_transform(unpacked_spo):
@@ -242,9 +261,6 @@ def _ghid_transform(unpacked_spo):
     None.
     '''
     ghid = Ghid(algo=unpacked_spo['algo'], address=unpacked_spo['address'])
-    
-    if ghid.algo == 0:
-        ghid.address = None
         
     return ghid
 

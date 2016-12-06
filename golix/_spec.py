@@ -1,5 +1,5 @@
 '''
-Spec-based definition of Golix objects. It sure ain't beautiful, but it's 
+Spec-based definition of Golix objects. It sure ain't beautiful, but it's
 getting the job done for now.
 
 LICENSING
@@ -10,7 +10,7 @@ golix: A python library for Golix protocol object manipulation.
     
     Contributors
     ------------
-    Nick Badger 
+    Nick Badger
         badg@muterra.io | badg@nickbadger.com | nickbadger.com
 
     This library is free software; you can redistribute it and/or
@@ -24,10 +24,10 @@ golix: A python library for Golix protocol object manipulation.
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to the 
+    License along with this library; if not, write to the
     Free Software Foundation, Inc.,
-    51 Franklin Street, 
-    Fifth Floor, 
+    51 Franklin Street,
+    Fifth Floor,
     Boston, MA  02110-1301 USA
 
 ------------------------------------------------------
@@ -59,34 +59,52 @@ from .utils import generate_ghidlist_parser
 # Crypto parsers definition block
 
 _signature_parsers = {}
-_signature_parsers[0] = ParseHelper(parsers.Literal(_dummy_signature, verify=False))
-_signature_parsers[1] = ParseHelper(parsers.Blob(length=512))
-_signature_parsers[2] = ParseHelper(parsers.Blob(length=512))
+_signature_parsers[0] = ParseHelper(
+    parsers.Literal(_dummy_signature, verify=True))
+_signature_parsers[1] = ParseHelper(
+    parsers.Blob(length=512))
+_signature_parsers[2] = ParseHelper(
+    parsers.Blob(length=512))
 
 _mac_parsers = {}
-_mac_parsers[0] = ParseHelper(parsers.Literal(_dummy_mac, verify=False))
-_mac_parsers[1] = ParseHelper(parsers.Blob(length=64))
-_mac_parsers[2] = ParseHelper(parsers.Blob(length=64))
+_mac_parsers[0] = ParseHelper(
+    parsers.Literal(_dummy_mac, verify=True))
+_mac_parsers[1] = ParseHelper(
+    parsers.Blob(length=64))
+_mac_parsers[2] = ParseHelper(
+    parsers.Blob(length=64))
 
 _asym_parsers = {}
-_asym_parsers[0] = ParseHelper(parsers.Literal(_dummy_asym, verify=False))
-_asym_parsers[1] = ParseHelper(parsers.Blob(length=512))
-_asym_parsers[2] = ParseHelper(parsers.Blob(length=512))
+_asym_parsers[0] = ParseHelper(
+    parsers.Literal(_dummy_asym, verify=True))
+_asym_parsers[1] = ParseHelper(
+    parsers.Blob(length=512))
+_asym_parsers[2] = ParseHelper(
+    parsers.Blob(length=512))
 
 _pubkey_parsers_sig = {}
-_pubkey_parsers_sig[0] = ParseHelper(parsers.Literal(_dummy_pubkey, verify=False))
-_pubkey_parsers_sig[1] = ParseHelper(parsers.Blob(length=512))
-_pubkey_parsers_sig[2] = ParseHelper(parsers.Blob(length=512))
+_pubkey_parsers_sig[0] = ParseHelper(
+    parsers.Literal(_dummy_pubkey, verify=True))
+_pubkey_parsers_sig[1] = ParseHelper(
+    parsers.Blob(length=512))
+_pubkey_parsers_sig[2] = ParseHelper(
+    parsers.Blob(length=512))
 
 _pubkey_parsers_encrypt = {}
-_pubkey_parsers_encrypt[0] = ParseHelper(parsers.Literal(_dummy_pubkey, verify=False))
-_pubkey_parsers_encrypt[1] = ParseHelper(parsers.Blob(length=512))
-_pubkey_parsers_encrypt[2] = ParseHelper(parsers.Blob(length=512))
+_pubkey_parsers_encrypt[0] = ParseHelper(
+    parsers.Literal(_dummy_pubkey, verify=True))
+_pubkey_parsers_encrypt[1] = ParseHelper(
+    parsers.Blob(length=512))
+_pubkey_parsers_encrypt[2] = ParseHelper(
+    parsers.Blob(length=512))
 
 _pubkey_parsers_exchange = {}
-_pubkey_parsers_exchange[0] = ParseHelper(parsers.Literal(_dummy_pubkey, verify=False))
-_pubkey_parsers_exchange[1] = ParseHelper(parsers.Blob(length=32))
-_pubkey_parsers_exchange[2] = ParseHelper(parsers.Blob(length=32))
+_pubkey_parsers_exchange[0] = ParseHelper(
+    parsers.Literal(_dummy_pubkey, verify=True))
+_pubkey_parsers_exchange[1] = ParseHelper(
+    parsers.Blob(length=32))
+_pubkey_parsers_exchange[2] = ParseHelper(
+    parsers.Blob(length=32))
 
 # ----------------------------------------------------------------------
 # Use this whenever a GHID list is required
@@ -116,10 +134,22 @@ _gidc_cipher_update = _callback_multi(
     _gen_body_update(_gidc, _pubkey_parsers_exchange, 'exchange_key')
 )
 
-_gidc['version'].register_callback('prepack', _gen_dispatch(_gidc, _gidc_lookup, 'body'))
-_gidc['version'].register_callback('postunpack', _gen_dispatch(_gidc, _gidc_lookup, 'body'))
-_gidc['cipher'].register_callback('prepack', _gidc_cipher_update)
-_gidc['cipher'].register_callback('postunpack', _gidc_cipher_update)
+_gidc['version'].register_callback(
+    'prepack',
+    _gen_dispatch(_gidc, _gidc_lookup, 'body')
+)
+_gidc['version'].register_callback(
+    'postunpack',
+    _gen_dispatch(_gidc, _gidc_lookup, 'body')
+)
+_gidc['cipher'].register_callback(
+    'prepack',
+    _gidc_cipher_update
+)
+_gidc['cipher'].register_callback(
+    'postunpack',
+    _gidc_cipher_update
+)
 
 _gidc.latest = max(list(_gidc_lookup))
 _gidc.versions = set(_gidc_lookup)
@@ -142,10 +172,22 @@ _geoc_lookup[14]['len_payload'] = ParseHelper(parsers.Int64(signed=False))
 _geoc_lookup[14]['payload'] = ParseHelper(parsers.Blob())
 _geoc_lookup[14].link_length('payload', 'len_payload')
     
-_geoc['version'].register_callback('prepack', _gen_dispatch(_geoc, _geoc_lookup, 'body'))
-_geoc['version'].register_callback('postunpack', _gen_dispatch(_geoc, _geoc_lookup, 'body'))
-_geoc['cipher'].register_callback('prepack', _gen_dispatch(_geoc, _signature_parsers, 'signature'))
-_geoc['cipher'].register_callback('postunpack', _gen_dispatch(_geoc, _signature_parsers, 'signature'))
+_geoc['version'].register_callback(
+    'prepack',
+    _gen_dispatch(_geoc, _geoc_lookup, 'body')
+)
+_geoc['version'].register_callback(
+    'postunpack',
+    _gen_dispatch(_geoc, _geoc_lookup, 'body')
+)
+_geoc['cipher'].register_callback(
+    'prepack',
+    _gen_dispatch(_geoc, _signature_parsers, 'signature')
+)
+_geoc['cipher'].register_callback(
+    'postunpack',
+    _gen_dispatch(_geoc, _signature_parsers, 'signature')
+)
 
 _geoc.latest = max(list(_geoc_lookup))
 _geoc.versions = set(_geoc_lookup)
@@ -166,10 +208,22 @@ _gobs_lookup[6] = SmartyParser()
 _gobs_lookup[6]['binder'] = generate_ghid_parser()
 _gobs_lookup[6]['target'] = generate_ghid_parser()
     
-_gobs['version'].register_callback('prepack', _gen_dispatch(_gobs, _gobs_lookup, 'body'))
-_gobs['version'].register_callback('postunpack', _gen_dispatch(_gobs, _gobs_lookup, 'body'))
-_gobs['cipher'].register_callback('prepack', _gen_dispatch(_gobs, _signature_parsers, 'signature'))
-_gobs['cipher'].register_callback('postunpack', _gen_dispatch(_gobs, _signature_parsers, 'signature'))
+_gobs['version'].register_callback(
+    'prepack',
+    _gen_dispatch(_gobs, _gobs_lookup, 'body')
+)
+_gobs['version'].register_callback(
+    'postunpack',
+    _gen_dispatch(_gobs, _gobs_lookup, 'body')
+)
+_gobs['cipher'].register_callback(
+    'prepack',
+    _gen_dispatch(_gobs, _signature_parsers, 'signature')
+)
+_gobs['cipher'].register_callback(
+    'postunpack',
+    _gen_dispatch(_gobs, _signature_parsers, 'signature')
+)
 
 _gobs.latest = max(list(_gobs_lookup))
 _gobs.versions = set(_gobs_lookup)
@@ -187,17 +241,29 @@ _gobd['ghid'] = generate_ghid_parser()
 _gobd['signature'] = None
 
 _gobd_lookup = {}
-_gobd_lookup[15] = SmartyParser()
-_gobd_lookup[15]['binder'] = generate_ghid_parser()
-_gobd_lookup[15]['history_length'] = ParseHelper(parsers.Int16(signed=False))
-_gobd_lookup[15]['history'] = _ghidlist
-_gobd_lookup[15]['target'] = generate_ghid_parser()
-_gobd_lookup[15].link_length('history', 'history_length')
+_gobd_lookup[16] = SmartyParser()
+_gobd_lookup[16]['binder'] = generate_ghid_parser()
+_gobd_lookup[16]['counter'] = ParseHelper(parsers.Int64(signed=False))
+_gobd_lookup[16]['tarvec_length'] = ParseHelper(parsers.Int16(signed=False))
+_gobd_lookup[16]['target_vector'] = _ghidlist
+_gobd_lookup[16].link_length('target_vector', 'tarvec_length')
     
-_gobd['version'].register_callback('prepack', _gen_dispatch(_gobd, _gobd_lookup, 'body'))
-_gobd['version'].register_callback('postunpack', _gen_dispatch(_gobd, _gobd_lookup, 'body'))
-_gobd['cipher'].register_callback('prepack', _gen_dispatch(_gobd, _signature_parsers, 'signature'))
-_gobd['cipher'].register_callback('postunpack', _gen_dispatch(_gobd, _signature_parsers, 'signature'))
+_gobd['version'].register_callback(
+    'prepack',
+    _gen_dispatch(_gobd, _gobd_lookup, 'body')
+)
+_gobd['version'].register_callback(
+    'postunpack',
+    _gen_dispatch(_gobd, _gobd_lookup, 'body')
+)
+_gobd['cipher'].register_callback(
+    'prepack',
+    _gen_dispatch(_gobd, _signature_parsers, 'signature')
+)
+_gobd['cipher'].register_callback(
+    'postunpack',
+    _gen_dispatch(_gobd, _signature_parsers, 'signature')
+)
 
 _gobd.latest = max(list(_gobd_lookup))
 _gobd.versions = set(_gobd_lookup)
@@ -218,10 +284,22 @@ _gdxx_lookup[9] = SmartyParser()
 _gdxx_lookup[9]['debinder'] = generate_ghid_parser()
 _gdxx_lookup[9]['target'] = generate_ghid_parser()
     
-_gdxx['version'].register_callback('prepack', _gen_dispatch(_gdxx, _gdxx_lookup, 'body'))
-_gdxx['version'].register_callback('postunpack', _gen_dispatch(_gdxx, _gdxx_lookup, 'body'))
-_gdxx['cipher'].register_callback('prepack', _gen_dispatch(_gdxx, _signature_parsers, 'signature'))
-_gdxx['cipher'].register_callback('postunpack', _gen_dispatch(_gdxx, _signature_parsers, 'signature'))
+_gdxx['version'].register_callback(
+    'prepack',
+    _gen_dispatch(_gdxx, _gdxx_lookup, 'body')
+)
+_gdxx['version'].register_callback(
+    'postunpack',
+    _gen_dispatch(_gdxx, _gdxx_lookup, 'body')
+)
+_gdxx['cipher'].register_callback(
+    'prepack',
+    _gen_dispatch(_gdxx, _signature_parsers, 'signature')
+)
+_gdxx['cipher'].register_callback(
+    'postunpack',
+    _gen_dispatch(_gdxx, _signature_parsers, 'signature')
+)
 
 _gdxx.latest = max(list(_gdxx_lookup))
 _gdxx.versions = set(_gdxx_lookup)
@@ -243,13 +321,25 @@ _garq_lookup[12]['recipient'] = generate_ghid_parser()
 _garq_lookup[12]['payload'] = None
 
 _garq_cipher_update = _callback_multi(
-    _gen_dispatch(_garq, _mac_parsers, 'signature'), 
+    _gen_dispatch(_garq, _mac_parsers, 'signature'),
     _gen_body_update(_garq, _asym_parsers, 'payload')
 )
-_garq['version'].register_callback('prepack', _gen_dispatch(_garq, _garq_lookup, 'body'))
-_garq['version'].register_callback('postunpack', _gen_dispatch(_garq, _garq_lookup, 'body'))
-_garq['cipher'].register_callback('prepack', _garq_cipher_update)
-_garq['cipher'].register_callback('postunpack', _garq_cipher_update)
+_garq['version'].register_callback(
+    'prepack',
+    _gen_dispatch(_garq, _garq_lookup, 'body')
+)
+_garq['version'].register_callback(
+    'postunpack',
+    _gen_dispatch(_garq, _garq_lookup, 'body')
+)
+_garq['cipher'].register_callback(
+    'prepack',
+    _garq_cipher_update
+)
+_garq['cipher'].register_callback(
+    'postunpack',
+    _garq_cipher_update
+)
 
 _garq.latest = max(list(_garq_lookup))
 _garq.versions = set(_garq_lookup)

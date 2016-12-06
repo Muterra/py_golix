@@ -556,15 +556,11 @@ class GOBD(_GolixObjectBase):
     '''
     PARSER = _gobd
     
-    def __init__(self, 
-                binder=None, 
-                history=None, 
-                target=None, 
-                ghid_dynamic=None, 
-                _control=None, *args, **kwargs):
+    def __init__(self, binder=None, counter=None, target_vector=None,
+                 ghid_dynamic=None, _control=None, *args, **kwargs):
         ''' Generates GOBS object.
         
-        Binder, targets, and ghid_dynamic should be a utils.Ghid 
+        Binder, targets, and ghid_dynamic should be a utils.Ghid
         object (or similar).
         '''
         super().__init__(_control=_control, *args, **kwargs)
@@ -572,9 +568,9 @@ class GOBD(_GolixObjectBase):
         # Don't overwrite anything we loaded from _control!
         if not _control:
             self.binder = binder
-            self.target = target
+            self.counter = counter
+            self.target_vector = target_vector
             self.ghid_dynamic = ghid_dynamic
-            self.history = history
         
     @property
     def binder(self):
@@ -591,18 +587,22 @@ class GOBD(_GolixObjectBase):
         self._control['body']['binder'] = ghid
         
     @property
+    def counter(self):
+        try:
+            return self._control['body']['counter']
+        except KeyError as e:
+            raise AttributeError('Counter not yet defined.') from e
+            
+    @counter.setter
+    def counter(self, val):
+        self._control['body']['counter'] = int(val)
+        
+    @property
     def target(self):
         try:
-            return self._control['body']['target']
+            return self.target_vector[0]
         except KeyError as e:
             raise AttributeError('Targets not yet defined.') from e
-            
-    @target.setter
-    def target(self, value):
-        if not _typecheck_ghid(value):
-            raise TypeError('Target must be type Ghid or similar.')
-        
-        self._control['body']['target'] = value
         
     @property
     def ghid_dynamic(self):
@@ -619,18 +619,20 @@ class GOBD(_GolixObjectBase):
         self._control['ghid_dynamic'] = ghid
         
     @property
-    def history(self):
+    def target_vector(self):
         try:
-            return self._control['body']['history']
+            return self._control['body']['target_vector']
         except KeyError as e:
-            raise AttributeError('History not yet defined.') from e
+            raise AttributeError('Target vector not yet defined.') from e
             
-    @history.setter
-    def history(self, value):
+    @target_vector.setter
+    def target_vector(self, value):
         if not _typecheck_ghidlist(value):
-            raise TypeError('History must be an iterable of Ghids or similar.')
+            raise TypeError(
+                'Target vector must be an iterable of Ghids or similar.'
+            )
 
-        self._control['body']['history'] = value
+        self._control['body']['target_vector'] = value
         
     def pack(self, address_algo, cipher):
         ''' Overwrite super() to support dynamic address generation.
@@ -639,11 +641,12 @@ class GOBD(_GolixObjectBase):
         '''
         # Normal
         # First we need to check some things.
-        if self.history and self.ghid_dynamic:
-            # Accommodate SP
+        has_history = len(self.target_vector) > 1
+        if has_history and self.ghid_dynamic:
+            # Accommodate smartyparse
             calculate_dynamic = False
-        # Normal
-        elif self.history or self.ghid_dynamic:
+            
+        elif has_history or self.ghid_dynamic:
             raise ValueError(
                 'History and dynamic address must both be defined, or '
                 'undefined. One cannot exist without the other.')
@@ -670,7 +673,6 @@ class GOBD(_GolixObjectBase):
         
         # Accommodate SP
         if calculate_dynamic:
-            self.history = []
             self.ghid_dynamic = Ghid(self.address_algo, ghid_padding)
         
         # Normal
@@ -725,21 +727,21 @@ class GOBD(_GolixObjectBase):
         # Accommodate SP
         offset_cache_static = []
         offset_cacher_static = _generate_offset_cacher(
-            offset_cache_static, 
+            offset_cache_static,
             cls.PARSER['ghid']
         )
         cls.PARSER['ghid'].register_callback(
-            'preunpack', 
+            'preunpack',
             offset_cacher_static
         )
         
         offset_cache_dynamic = []
         offset_cacher_dynamic = _generate_offset_cacher(
-            offset_cache_dynamic, 
+            offset_cache_dynamic,
             cls.PARSER['ghid_dynamic']
         )
         cls.PARSER['ghid_dynamic'].register_callback(
-            'preunpack', 
+            'preunpack',
             offset_cacher_dynamic
         )
         
@@ -756,9 +758,9 @@ class GOBD(_GolixObjectBase):
         address_data_dynamic = self._packed[:address_offset_dynamic].tobytes()
         
         # Verify the initial hash if history is undefined
-        if not self.history:
+        if len(self.target_vector) == 1:
             self._addresser.verify(
-                self.ghid_dynamic.address, 
+                self.ghid_dynamic.address,
                 address_data_dynamic
             )
         

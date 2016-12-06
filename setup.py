@@ -1,6 +1,6 @@
 ''' Golix: A python library for Golix object manipulation.
 
-Golix: a python library for Golix object manipulation. Create and 
+Golix: a python library for Golix object manipulation. Create and
 read encrypted Golix file objects.
 
 Notes to self
@@ -23,9 +23,9 @@ from os import path
 
 here = path.abspath(path.dirname(__file__))
 
-long_description = '''Golix is a python library for Golix object manipulation. Create,
-read, validate, and otherwise manipulate cryptographic Golix objects 
-without worrying about the bits and bytes.'''
+long_description = '''Golix is a python library for Golix object manipulation.
+ Create, read, validate, and otherwise manipulate cryptographic Golix
+ objects without worrying about the bits and bytes.'''
 # If we're installing, don't bother building the long_description
 # Ewwww, this is dirty.
 if sys.argv[1] == 'sdist':
@@ -44,7 +44,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1.3',
+    version='0.1.4',
 
     description='A python library for Golix object manipulation.',
     long_description=long_description,

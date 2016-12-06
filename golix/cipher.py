@@ -7,7 +7,7 @@ golix: A python library for Golix protocol object manipulation.
     
     Contributors
     ------------
-    Nick Badger 
+    Nick Badger
         badg@muterra.io | badg@nickbadger.com | nickbadger.com
 
     This library is free software; you can redistribute it and/or
@@ -21,10 +21,10 @@ golix: A python library for Golix protocol object manipulation.
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to the 
+    License along with this library; if not, write to the
     Free Software Foundation, Inc.,
-    51 Franklin Street, 
-    Fifth Floor, 
+    51 Franklin Street,
+    Fifth Floor,
     Boston, MA  02110-1301 USA
 
 ------------------------------------------------------
@@ -33,7 +33,7 @@ A NOTE ON RANDOM NUMBERS...
 PyCryptoDome sources randomness from os.urandom(). This should be secure
 for most applications. HOWEVER, if your system is low on entropy (can
 be an issue in high-demand applications like servers), urandom *will not
-block to wait for entropy*, and will revert (ish?) to potentially 
+block to wait for entropy*, and will revert (ish?) to potentially
 insufficiently secure pseudorandom generation. In that case, it might be
 better to source from elsewhere (like a hardware RNG).
 
@@ -48,10 +48,10 @@ Some initial temporary thoughts:
     to totally factor crypto awareness out of the objects entirely,
     except (of course) for address algorithms.
 6. From within python, should the identies be forced to ONLY support
-    a single ciphersuite? That would certainly make life easier. A 
+    a single ciphersuite? That would certainly make life easier. A
     LOT easier. Yeah, let's do that then. Multi-CS identities can
     multi-subclass, and will need to add some kind of glue code for
-    key reuse. Deal with that later, but it'll probably entail 
+    key reuse. Deal with that later, but it'll probably entail
     backwards-incompatible changes.
 7. Then, the identities should also generate secrets. That will also
     remove people from screwing up and using ex. random.random().
@@ -65,7 +65,7 @@ Some initial temporary thoughts:
     figure out the ghid. What about returning a namedtuple, and adding
     a field for secrets in the GEOC? that might be something to add
     to the actual objects (ex GEOC) instead of the identity. That would
-    also reduce the burden on identities for state management of 
+    also reduce the burden on identities for state management of
     generated objects, which should really be handled at a higher level
     than this library.
 8. Algorithm precedence order should be defined globally, but capable
@@ -74,8 +74,8 @@ Some initial temporary thoughts:
 
 # Control * imports
 __all__ = [
-    'FirstParty1', 
-    'SecondParty1', 
+    'FirstParty1',
+    'SecondParty1',
     'ThirdParty1'
 ]
 
@@ -232,7 +232,7 @@ class _ObjectHandlerBase(metaclass=abc.ABCMeta):
     @staticmethod
     @abc.abstractmethod
     def unpack_request(packed):
-        ''' Unpacks requests. Different for firstparties and 
+        ''' Unpacks requests. Different for firstparties and
         thirdparties, but used by both in unpack_any.
         '''
         pass
@@ -241,7 +241,7 @@ class _ObjectHandlerBase(metaclass=abc.ABCMeta):
         ''' Try to unpack using any available parser.
         Raises TypeError if no parser is found.
         '''
-        for parser in (self.unpack_identity, 
+        for parser in (self.unpack_identity,
                         self.unpack_container,
                         self.unpack_bind_static,
                         self.unpack_bind_dynamic,
@@ -276,7 +276,7 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
                 'with "signature", "encryption", and "exchange" keys.'
             ) from e
             
-        gidc = GIDC( 
+        gidc = GIDC(
             signature_key=packed_keys['signature'],
             encryption_key=packed_keys['encryption'],
             exchange_key=packed_keys['exchange']
@@ -289,8 +289,8 @@ class _SecondPartyBase(metaclass=abc.ABCMeta):
         
     @classmethod
     def from_identity(cls, gidc):
-        ''' Loads an unpacked gidc into a SecondParty. Note that this 
-        does not select the correct SecondParty for any given gidc's 
+        ''' Loads an unpacked gidc into a SecondParty. Note that this
+        does not select the correct SecondParty for any given gidc's
         ciphersuite.
         '''
         ghid = gidc.ghid
@@ -338,7 +338,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         # Load an existing identity
         if keys is not None and ghid is not None:
             self._second_party = self._generate_second_party(
-                keys, 
+                keys,
                 self.address_algo
             )
             
@@ -353,7 +353,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         else:
             keys = self._generate_keys()
             self._second_party = self._generate_second_party(
-                keys, 
+                keys,
                 self.address_algo
             )
             ghid = self._second_party.ghid
@@ -392,7 +392,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         geoc.pack_signature(signature)
         return geoc
         
-    def make_bind_static(self, target):        
+    def make_bind_static(self, target):
         gobs = GOBS(
             binder = self.ghid,
             target = target
@@ -562,7 +562,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             unpacked = GARQHandshake.unpack(plaintext)
             request = AsymHandshake(
                 author = unpacked.author,
-                target = unpacked.target, 
+                target = unpacked.target,
                 secret = unpacked.secret
             )
         except ParseError:
@@ -570,7 +570,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
                 unpacked = GARQAck.unpack(plaintext)
                 request = AsymAck(
                     author = unpacked.author,
-                    target = unpacked.target, 
+                    target = unpacked.target,
                     status = unpacked.status
                 )
             except ParseError:
@@ -578,7 +578,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
                     unpacked = GARQNak.unpack(plaintext)
                     request = AsymNak(
                         author = unpacked.author,
-                        target = unpacked.target, 
+                        target = unpacked.target,
                         status = unpacked.status
                     )
                 except ParseError:
@@ -620,7 +620,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
     @classmethod
     @abc.abstractmethod
     def _generate_second_party(cls, keys, address_algo):
-        ''' MUST ONLY be called when generating one from scratch, not 
+        ''' MUST ONLY be called when generating one from scratch, not
         when loading one. Loading must always be done directly through
         loading a SecondParty.
         '''
@@ -637,7 +637,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             'exchange': <exchange key>
         }
         In a form that is usable by the rest of the FirstParty
-        crypto functions (this is dependent on the individual class' 
+        crypto functions (this is dependent on the individual class'
         implementation, ex its crypto library).
         '''
         pass
@@ -693,7 +693,7 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
     @abc.abstractmethod
     def _derive_shared(self, partner):
-        ''' Derive a shared secret (not necessarily a Secret!) with the 
+        ''' Derive a shared secret (not necessarily a Secret!) with the
         partner.
         '''
         pass
@@ -737,8 +737,8 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
         
 class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
-    ''' Subclass this (on a per-ciphersuite basis) for servers, and 
-    other parties that have no access to privileged information. 
+    ''' Subclass this (on a per-ciphersuite basis) for servers, and
+    other parties that have no access to privileged information.
     They can only verify.
     '''
     @property
@@ -784,10 +784,10 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
         
     @classmethod
     def verify_object(cls, second_party, obj):
-        ''' Verifies the signature of any symmetric object (aka 
+        ''' Verifies the signature of any symmetric object (aka
         everything except GARQ) against data.
         
-        raises TypeError if obj is an asymmetric object (or otherwise 
+        raises TypeError if obj is an asymmetric object (or otherwise
             unsupported).
         raises SecurityError if verification fails.
         returns True on success.
@@ -797,7 +797,7 @@ class _ThirdPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             isinstance(obj, GOBD) or \
             isinstance(obj, GDXX):
                 return cls._verify(
-                    public = second_party, 
+                    public = second_party,
                     signature = obj.signature,
                     data = obj.ghid.address
                 )
@@ -837,12 +837,12 @@ class SecondParty0(_SecondPartyBase, _IdentityBase):
         
         
 class FirstParty0(_FirstPartyBase, _IdentityBase):
-    ''' FOR TESTING PURPOSES ONLY. 
+    ''' FOR TESTING PURPOSES ONLY.
     
     Entirely inoperative. Correct API, but ignores all input, creating
     only a symbolic output.
     
-    NOTE THAT INHERITANCE ORDER MATTERS! Must be first a FirstParty, 
+    NOTE THAT INHERITANCE ORDER MATTERS! Must be first a FirstParty,
     and second an Identity.
     '''
     _ciphersuite = 0
@@ -900,17 +900,17 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
     def _sign(self, data):
         ''' Placeholder signing method.
         
-        Data must be bytes-like. Private key should be a dictionary 
+        Data must be bytes-like. Private key should be a dictionary
         formatted with all necessary components for a private key (?).
         '''
         return _dummy_signature
     
     @classmethod
     def _verify(cls, public, signature, data):
-        ''' Verifies an author's signature against bites. Errors out if 
+        ''' Verifies an author's signature against bites. Errors out if
         unsuccessful. Returns True if successful.
         
-        Data must be bytes-like. public_key should be a dictionary 
+        Data must be bytes-like. public_key should be a dictionary
         formatted with all necessary components for a public key (?).
         Signature must be bytes-like.
         '''
@@ -920,7 +920,7 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
     def _encrypt_asym(self, public, data):
         ''' Placeholder asymmetric encryptor.
         
-        Data should be bytes-like. Public key should be a dictionary 
+        Data should be bytes-like. Public key should be a dictionary
         formatted with all necessary components for a public key.
         '''
         self._typecheck_2ndparty(public)
@@ -934,10 +934,10 @@ class FirstParty0(_FirstPartyBase, _IdentityBase):
         
         Or, even better, do an arbitrary object content, and then encode
         what class of internal object to use there. That way, it's not
-        possible to accidentally encode secrets publicly, but you can 
+        possible to accidentally encode secrets publicly, but you can
         also emulate behavior of normal exchange.
         
-        Data should be bytes-like. Public key should be a dictionary 
+        Data should be bytes-like. Public key should be a dictionary
         formatted with all necessary components for a public key.
         '''
         # Note that this will error out when trying to load components,
@@ -985,19 +985,19 @@ class ThirdParty0(_ThirdPartyBase):
     _verify = FirstParty0._verify
         
         
-class SecondParty1(_SecondPartyBase, _IdentityBase): 
-    _ciphersuite = 1  
+class SecondParty1(_SecondPartyBase, _IdentityBase):
+    _ciphersuite = 1
         
     @classmethod
     def _pack_keys(cls, keys):
         packkeys = {
             'signature': int.to_bytes(
-                                    keys['signature'].public_numbers().n, 
-                                    length=512, 
+                                    keys['signature'].public_numbers().n,
+                                    length=512,
                                     byteorder='big'),
             'encryption': int.to_bytes(
-                                    keys['encryption'].public_numbers().n, 
-                                    length=512, 
+                                    keys['encryption'].public_numbers().n,
+                                    length=512,
                                     byteorder='big'),
             'exchange': keys['exchange'].public,
         }
@@ -1039,7 +1039,7 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
             'signature': keys['signature'].public_key(),
             'encryption': keys['encryption'].public_key(),
             'exchange': keys['exchange'].get_public()
-        } 
+        }
         del keys
         return cls._2PID.from_keys(keys=pubkeys, address_algo=address_algo)
         
@@ -1168,10 +1168,10 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
        
     @classmethod
     def _verify(cls, public, signature, data):
-        ''' Verifies an author's signature against bites. Errors out if 
+        ''' Verifies an author's signature against bites. Errors out if
         unsuccessful. Returns True if successful.
         
-        Data must be bytes-like. public_key should be a dictionary 
+        Data must be bytes-like. public_key should be a dictionary
         formatted with all necessary components for a public key (?).
         Signature must be bytes-like.
         '''
@@ -1208,7 +1208,7 @@ class FirstParty1(_FirstPartyBase, _IdentityBase):
     def _encrypt_asym(self, public, data):
         ''' Placeholder asymmetric encryptor.
         
-        Data should be bytes-like. Public key should be a dictionary 
+        Data should be bytes-like. Public key should be a dictionary
         formatted with all necessary components for a public key.
         '''
         self._typecheck_2ndparty(public)

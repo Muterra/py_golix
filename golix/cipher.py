@@ -611,7 +611,6 @@ class _FirstPartyBase(_ObjectHandlerBase, metaclass=abc.ABCMeta):
             mac = request.signature
         )
         
-        del request._plaintext, request.author
         return plaintext
         
     @classmethod

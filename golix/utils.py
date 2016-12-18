@@ -525,6 +525,18 @@ class Secret:
             raise TypeError(
                 'Cannot compare Secret objects to non-Secret-like objects.'
             ) from e
+        
+    def as_str(self):
+        ''' Encodes the ghid as a urlsafe-base64 string.
+        '''
+        return base64.urlsafe_b64encode(bytes(self)).decode()
+        
+    @classmethod
+    def from_str(cls, b64):
+        ''' Returns a ghid built from the urlsafe-base64 string b64.
+        '''
+        raw = base64.urlsafe_b64decode(b64)
+        return cls.from_bytes(raw)
 
 
 # ----------------------------------------------------------------------

@@ -254,7 +254,8 @@ class Ghid:
     def __str__(self):
         c = type(self).__name__
         b64 = base64.urlsafe_b64encode(bytes(self)).decode()
-        return c + '(\'' + b64[:5] + '...\')'
+        # Skip the first character, because it's always A.
+        return c + '(\'' + b64[1:6] + '...\')'
         
     def as_str(self):
         ''' Encodes the ghid as a urlsafe-base64 string.

@@ -41,12 +41,12 @@ from golix import Ghid
 # These are abnormal (don't use in production) inclusions
 from golix._spec import _gidc, _geoc, _gobs, _gobd, _gdxx, _garq
 from golix._spec import _asym_hand, _asym_ak, _asym_nk, _asym_else
-from golix.utils import _dummy_signature
-from golix.utils import _dummy_mac
-from golix.utils import _dummy_asym
-from golix.utils import _dummy_address
-from golix.utils import _dummy_pubkey
-from golix.utils import _dummy_pubkey_exchange
+from golix.crypto_utils import _dummy_signature
+from golix.crypto_utils import _dummy_mac
+from golix.crypto_utils import _dummy_asym
+from golix.crypto_utils import _dummy_address
+from golix.crypto_utils import _dummy_pubkey
+from golix.crypto_utils import _dummy_pubkey_exchange
 
 # ###############################################
 # Testing

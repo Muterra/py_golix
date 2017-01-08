@@ -101,9 +101,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'donna25519>=0.1.1',
-        'cryptography>=1.6',
-        'smartyparse>=0.1.3',
+        'smartyparse>=0.1.3'
     ],
 
     # List additional groups of dependencies here (e.g. development
@@ -111,8 +109,8 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'dev': [],
-        'test': [],
+        'full': ['donna25519>=0.1.1',
+                 'cryptography>=1.6']
     },
 
     # If there are data files included in your packages that need to be

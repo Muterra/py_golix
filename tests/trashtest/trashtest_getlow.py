@@ -52,13 +52,13 @@ from golix._getlow import GARQAck
 from golix._getlow import GARQNak
 from golix._getlow import GARQElse
 
-from golix.utils import Secret
-from golix.utils import _dummy_signature
-from golix.utils import _dummy_mac
-from golix.utils import _dummy_asym
-from golix.utils import _dummy_address
-from golix.utils import _dummy_pubkey
-from golix.utils import _dummy_pubkey_exchange
+from golix.crypto_utils import Secret
+from golix.crypto_utils import _dummy_signature
+from golix.crypto_utils import _dummy_mac
+from golix.crypto_utils import _dummy_asym
+from golix.crypto_utils import _dummy_address
+from golix.crypto_utils import _dummy_pubkey
+from golix.crypto_utils import _dummy_pubkey_exchange
 from golix.utils import _dummy_ghid
 
 # These are soon-to-be-removed abnormal imports

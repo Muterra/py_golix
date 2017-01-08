@@ -30,14 +30,56 @@ golix: A python library for Golix protocol object manipulation.
 ------------------------------------------------------
 '''
 
-# Add in core module
-from .core import *
-
-# Submodules
-from . import _getlow
-from . import _spec
-from . import cipher
+# Utility submodules are always imported
 from . import utils
+from .utils import Ghid
+from .exceptions import SecurityError
+
+from smartyparse import ParseError
+
+# We need to toggle between importing only utils and importing everything,
+# depending on which dependencies are available
+try:
+    import donna25519
+    import cryptography
+    import smartyparse
+
+# This is a utils-only install; don't import all submodules
+except ImportError:
+    __all__ = [
+        'SecurityError',
+        'ParseError',
+        'Ghid',
+        'utils'
+    ]
+
+# Import all submodules on a full install
+else:
+    # Add in core module
+    from .crypto_utils import Secret
+    from .core import FirstParty
+    from .core import SecondParty
+    from .core import ThirdParty
+    from .core import firstparty_factory
+    from .core import thirdparty_factory
+    
+    from . import _getlow
+    from . import _spec
+    from . import cipher
+    
+    __all__ = [
+        'SecurityError',
+        'ParseError',
+        'Ghid',
+        'Secret',
+        'FirstParty',
+        'SecondParty',
+        'ThirdParty',
+        'firstparty_factory',
+        'thirdparty_factory',
+        'utils',
+        'cipher'
+    ]
 
 
 class HowIWantObjectsToWork:

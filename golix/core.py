@@ -31,41 +31,24 @@ golix: A python library for Golix protocol object manipulation.
 
 '''
 
-# Control * imports. Therefore controls what is available to toplevel
-# package through __init__.py
-__all__ = [
-    'SecurityError',
-    'ParseError',
-    'Ghid',
-    'Secret',
-    'FirstParty',
-    'SecondParty',
-    'ThirdParty',
-    'firstparty_factory',
-    'thirdparty_factory'
-]
+# External dependencies
 
-# Global dependencies
-# import collections
-from smartyparse import ParseError
-
-# Inter-package dependencies that pass straight through to __all__
-from .utils import Ghid
-from .utils import SecurityError
-from .utils import Secret
-
-# Inter-package dependencies that are only used locally
+# Internal deps
 from .cipher import FirstParty1 as FirstParty
 from .cipher import SecondParty1 as SecondParty
 from .cipher import ThirdParty1 as ThirdParty
+from .cipher import DEFAULT_CIPHER
+
+
+# Control * imports. Therefore controls what is available to toplevel
+# package through __init__.py
+__all__ = []
 
         
 # ###############################################
 # Utilities, etc
 # ###############################################
 
-
-from .cipher import DEFAULT_CIPHER
 
 # Note that these will need to change their mapping value if the "import as"
 # ever changes due to additional ciphersuites.

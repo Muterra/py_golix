@@ -51,13 +51,13 @@ from ._spec import _asym_nk
 from ._spec import _asym_else
 
 # Accommodate SP
-from .utils import cipher_length_lookup
-from .utils import hash_lookup
+from .crypto_utils import cipher_length_lookup
+from .crypto_utils import hash_lookup
 
 # Normal
+from .crypto_utils import Secret
 from .utils import Ghid
-from .utils import SecurityError
-from .utils import Secret
+from .exceptions import SecurityError
 
 
 # Control * imports

@@ -1,19 +1,49 @@
 language: python
-python:
-  - "3.3"
-  - "3.4"
-  - "3.5"
 env:
   global:
     - CI=true
-addons:
-  apt_packages:
-    - pandoc
+    
+matrix:
+  include:
+    - os: linux
+      python: 3.6
+      env: GOLIXINSTALL=full
+      
+    - os: linux
+      python: 3.6
+      env: GOLIXINSTALL=partial
+      
+    - os: linux
+      python: 3.5
+      env: GOLIXINSTALL=full
+      
+    - os: linux
+      python: 3.5
+      env: GOLIXINSTALL=partial
+      
+    - os: linux
+      python: 3.4
+      env: GOLIXINSTALL=full
+      
+    - os: linux
+      python: 3.4
+      env: GOLIXINSTALL=partial
+    
 # command to install dependencies
-install:
-  - pip install pypandoc
-  - pip install .
-script: python tests/supervisor.py
+install: |
+  if [[ $GOLIXINSTALL == 'full' ]]; then
+      pip install .[full]
+  else
+      pip install .
+  fi
+  
+script: |
+  if [[ $GOLIXINSTALL == 'full' ]]; then
+      python tests/trashtest.py
+  else
+      python tests/trashtest_partial.py
+  fi
+
 branches:
   only:
     - master

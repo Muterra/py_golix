@@ -41,19 +41,19 @@ from smartyparse import parsers
 from smartyparse import references
 
 from .utils import Ghid
-
-from .utils import _gen_dispatch
-from .utils import _gen_body_update
-from .utils import _callback_multi
-
-from .utils import _dummy_asym
-from .utils import _dummy_mac
-from .utils import _dummy_signature
-from .utils import _dummy_address
 from .utils import _dummy_ghid
-from .utils import _dummy_pubkey
-from .utils import generate_ghid_parser
-from .utils import generate_ghidlist_parser
+
+from .crypto_utils import _gen_dispatch
+from .crypto_utils import _gen_body_update
+from .crypto_utils import _callback_multi
+
+from .crypto_utils import _dummy_asym
+from .crypto_utils import _dummy_mac
+from .crypto_utils import _dummy_signature
+from .crypto_utils import _dummy_address
+from .crypto_utils import _dummy_pubkey
+from .crypto_utils import generate_ghid_parser
+from .crypto_utils import generate_ghidlist_parser
 
 # ----------------------------------------------------------------------
 # Crypto parsers definition block

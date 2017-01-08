@@ -92,22 +92,22 @@ from donna25519 import PublicKey as ECDHPublic
 from smartyparse import ParseError
 
 # Interpackage dependencies
+from .exceptions import SecurityError
+
 from .utils import Ghid
-from .utils import SecurityError
-from .utils import ADDRESS_ALGOS
-from .utils import Secret
-
-from .utils import AsymHandshake
-from .utils import AsymAck
-from .utils import AsymNak
-
-from .utils import _dummy_asym
-from .utils import _dummy_mac
-from .utils import _dummy_signature
-from .utils import _dummy_address
 from .utils import _dummy_ghid
-from .utils import _dummy_pubkey
-from .utils import _dummy_pubkey_exchange
+
+from .crypto_utils import ADDRESS_ALGOS
+from .crypto_utils import Secret
+from .crypto_utils import AsymHandshake
+from .crypto_utils import AsymAck
+from .crypto_utils import AsymNak
+from .crypto_utils import _dummy_asym
+from .crypto_utils import _dummy_mac
+from .crypto_utils import _dummy_signature
+from .crypto_utils import _dummy_address
+from .crypto_utils import _dummy_pubkey
+from .crypto_utils import _dummy_pubkey_exchange
 
 from ._getlow import GIDC
 from ._getlow import GEOC

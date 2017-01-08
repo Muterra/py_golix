@@ -28,18 +28,6 @@ matrix:
     - os: linux
       python: 3.5
       env: GOLIXINSTALL=partial
-      
-    - os: linux
-      python: 3.4
-      env: GOLIXINSTALL=full OPENSSL=1.0.2j
-      
-    - os: linux
-      python: 3.4
-      env: GOLIXINSTALL=full OPENSSL=1.1.0c
-      
-    - os: linux
-      python: 3.4
-      env: GOLIXINSTALL=partial
     
 # command to install dependencies
 install: |

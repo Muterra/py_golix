@@ -7,7 +7,11 @@ matrix:
   include:
     - os: linux
       python: 3.6
-      env: GOLIXINSTALL=full
+      env: GOLIXINSTALL=full OPENSSL=1.0.2j
+      
+    - os: linux
+      python: 3.6
+      env: GOLIXINSTALL=full OPENSSL=1.1.0c
       
     - os: linux
       python: 3.6
@@ -15,7 +19,11 @@ matrix:
       
     - os: linux
       python: 3.5
-      env: GOLIXINSTALL=full
+      env: GOLIXINSTALL=full OPENSSL=1.0.2j
+      
+    - os: linux
+      python: 3.5
+      env: GOLIXINSTALL=full OPENSSL=1.1.0c
       
     - os: linux
       python: 3.5
@@ -23,7 +31,11 @@ matrix:
       
     - os: linux
       python: 3.4
-      env: GOLIXINSTALL=full
+      env: GOLIXINSTALL=full OPENSSL=1.0.2j
+      
+    - os: linux
+      python: 3.4
+      env: GOLIXINSTALL=full OPENSSL=1.1.0c
       
     - os: linux
       python: 3.4
@@ -31,6 +43,32 @@ matrix:
     
 # command to install dependencies
 install: |
+  if [ -n "${OPENSSL}" ]; then
+      OPENSSL_DIR="ossl-1/${OPENSSL}"
+      if [[ ! -f "$HOME/$OPENSSL_DIR/bin/openssl" ]]; then
+          curl -O https://www.openssl.org/source/openssl-$OPENSSL.tar.gz
+          tar zxf openssl-$OPENSSL.tar.gz
+          cd openssl-$OPENSSL
+          ./config shared no-asm no-ssl2 no-ssl3 -fPIC --prefix="$HOME/$OPENSSL_DIR"
+          # modify the shlib version to a unique one to make sure the dynamic
+          # linker doesn't load the system one. This isn't required for 1.1.0 at the
+          # moment since our Travis builders have a diff shlib version, but it doesn't hurt
+          sed -i "s/^SHLIB_MAJOR=.*/SHLIB_MAJOR=100/" Makefile
+          sed -i "s/^SHLIB_MINOR=.*/SHLIB_MINOR=0.0/" Makefile
+          sed -i "s/^SHLIB_VERSION_NUMBER=.*/SHLIB_VERSION_NUMBER=100.0.0/" Makefile
+          make depend
+          make install
+          
+          # Add new openssl to path
+          export PATH="$HOME/$OPENSSL_DIR/bin:$PATH"
+          export CFLAGS="-I$HOME/$OPENSSL_DIR/include"
+          # rpath on linux will cause it to use an absolute path so we don't need to do LD_LIBRARY_PATH
+          export LDFLAGS="-L$HOME/$OPENSSL_DIR/lib -Wl,-rpath=$HOME/$OPENSSL_DIR/lib"
+      fi
+
+      cd $TRAVIS_BUILD_DIR
+  fi
+  
   if [[ $GOLIXINSTALL == 'full' ]]; then
       pip install .[full]
   else

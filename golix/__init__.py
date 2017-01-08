@@ -35,8 +35,6 @@ from . import utils
 from .utils import Ghid
 from .exceptions import SecurityError
 
-from smartyparse import ParseError
-
 # We need to toggle between importing only utils and importing everything,
 # depending on which dependencies are available
 try:
@@ -48,13 +46,14 @@ try:
 except ImportError:
     __all__ = [
         'SecurityError',
-        'ParseError',
         'Ghid',
         'utils'
     ]
 
 # Import all submodules on a full install
 else:
+    from smartyparse import ParseError
+    
     # Add in core module
     from .crypto_utils import Secret
     from .core import FirstParty
